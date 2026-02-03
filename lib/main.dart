@@ -7,15 +7,16 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:audio_session/audio_session.dart';
 
 import 'constants/game_constants.dart';
+import 'models/game_models.dart';
 import 'providers/game_provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/ads_provider.dart';
 import 'providers/credit_provider.dart';
 import 'providers/purchases_provider.dart';
 import 'providers/audio_provider.dart';
+import 'providers/theme_provider.dart';
 import 'theme/app_theme.dart';
-import 'widgets/screens/start_screen.dart';
-import 'widgets/screens/game_screen.dart';
+import 'router/app_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -82,6 +83,7 @@ class GridMasterApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CreditProvider()),
         ChangeNotifierProvider(create: (_) => PurchasesProvider()),
         ChangeNotifierProvider(create: (_) => AudioProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: const _AppInitializer(),
     );
@@ -129,83 +131,102 @@ class _AppInitializerState extends State<_AppInitializer> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<SettingsProvider, AudioProvider>(
-      builder: (context, settingsProvider, audioProvider, child) {
-        // Initialize audio with settings when loaded
-        if (settingsProvider.isLoaded) {
-          audioProvider.initialize(
-            musicEnabled: settingsProvider.musicEnabled,
-            soundEnabled: settingsProvider.soundEnabled,
-            musicVolume: settingsProvider.musicVolume,
-            soundVolume: settingsProvider.soundVolume,
-          );
-        }
+    return Consumer3<SettingsProvider, AudioProvider, CreditProvider>(
+      builder:
+          (context, settingsProvider, audioProvider, creditProvider, child) {
+            // Initialize audio with settings when loaded
+            if (settingsProvider.isLoaded && creditProvider.isLoaded) {
+              audioProvider.initialize(
+                musicEnabled: settingsProvider.musicEnabled,
+                soundEnabled: settingsProvider.soundEnabled,
+                musicVolume: settingsProvider.musicVolume,
+                soundVolume: settingsProvider.soundVolume,
+                soundPackId: creditProvider.cosmeticState.equippedSoundPackId,
+              );
+            }
 
-        // Update ad-free status when purchases change (after build)
-        final purchasesProvider = context.watch<PurchasesProvider>();
-        if (_isInitialized && purchasesProvider.isInitialized) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            final adsProvider = context.read<AdsProvider>();
-            adsProvider.setAdFree(purchasesProvider.isAdFree);
-          });
-        }
+            // Synchronisiere Theme mit CreditProvider
+            if (creditProvider.isLoaded) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                final themeProvider = context.read<ThemeProvider>();
+                themeProvider.updateFromThemeId(
+                  creditProvider.cosmeticState.equippedThemeId,
+                );
+              });
+            }
 
-        return MaterialApp(
-          title: 'GridMaster',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.darkTheme,
-          localizationsDelegates: context.localizationDelegates,
-          supportedLocales: context.supportedLocales,
-          locale: context.locale,
-          home: const GameWrapper(),
-        );
-      },
+            // Update ad-free status when purchases change (after build)
+            final purchasesProvider = context.watch<PurchasesProvider>();
+            if (_isInitialized && purchasesProvider.isInitialized) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                final adsProvider = context.read<AdsProvider>();
+                adsProvider.setAdFree(purchasesProvider.isAdFree);
+              });
+            }
+
+            return MaterialApp.router(
+              title: 'GridMaster',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.darkTheme,
+              localizationsDelegates: context.localizationDelegates,
+              supportedLocales: context.supportedLocales,
+              locale: context.locale,
+              routerConfig: appRouter,
+              builder: (context, child) {
+                return AppWrapper(child: child);
+              },
+            );
+          },
     );
   }
 }
 
-/// Main wrapper that handles brightness and game state
-class GameWrapper extends StatelessWidget {
-  const GameWrapper({super.key});
+/// Main wrapper that handles brightness and background
+class AppWrapper extends StatelessWidget {
+  final Widget? child;
+
+  const AppWrapper({super.key, this.child});
 
   @override
   Widget build(BuildContext context) {
     final settingsProvider = context.watch<SettingsProvider>();
-    final gameProvider = context.watch<GameProvider>();
+    final themeProvider = context.watch<ThemeProvider>();
     final brightness = settingsProvider.brightness / 100;
+
+    // Standard-Theme verwendet den originalen dunkelblauen Gradient
+    final isDefaultTheme =
+        themeProvider.currentThemeType == CosmeticThemeType.defaultTheme;
 
     return ColorFiltered(
       colorFilter: ColorFilter.matrix(_brightnessMatrix(brightness)),
-      child: Scaffold(
-        backgroundColor: GameColors.slate900,
-        body: Stack(
-          children: [
-            // Background gradient
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      GameColors.slate900,
-                      GameColors.blue900.withValues(alpha: 0.2),
-                      GameColors.slate900,
-                    ],
-                  ),
+      child: Stack(
+        children: [
+          // Background gradient
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDefaultTheme
+                      ? [
+                          GameColors.slate900,
+                          GameColors.blue900.withValues(alpha: 0.2),
+                          GameColors.slate900,
+                        ]
+                      : [
+                          themeProvider.backgroundColor,
+                          themeProvider.primaryColor.withValues(alpha: 0.15),
+                          themeProvider.backgroundColor,
+                        ],
                 ),
               ),
             ),
+          ),
 
-            // Main content based on game state
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: gameProvider.isStart
-                  ? const StartScreen()
-                  : const GameScreen(),
-            ),
-          ],
-        ),
+          // Router content
+          if (child != null) child!,
+        ],
       ),
     );
   }

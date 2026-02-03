@@ -191,16 +191,12 @@ class CreditProvider extends ChangeNotifier {
   }
 
   /// Check and award cosmetic credits based on current score
-  /// Color Zen mode gives 1.5x cosmetic credits
   /// Returns the number of new cosmetic credits earned
-  int checkAndAwardCosmeticCredits(
-    int currentScore, {
-    bool isColorZen = false,
-  }) {
+  int checkAndAwardCosmeticCredits(int currentScore) {
     int cosmeticCreditsEarned = 0;
 
     // Earn 1 cosmetic credit per 1500 points (faster than regular credits)
-    final threshold = isColorZen ? 1000 : 1500; // Color Zen gives bonus
+    final threshold = 1000;
     final currentThreshold = (currentScore ~/ threshold) * threshold;
 
     while (_lastCosmeticCreditThreshold < currentThreshold) {

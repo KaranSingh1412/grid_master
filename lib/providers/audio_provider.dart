@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 /// Sound pack types available
-enum SoundPackType { defaultPack, zenPack, retroPack }
+enum SoundPackType { defaultPack, zenPack, retroPack, fartPack }
 
 /// Provider for managing game audio (music and sound effects)
 class AudioProvider extends ChangeNotifier {
@@ -31,6 +31,8 @@ class AudioProvider extends ChangeNotifier {
         return SoundPackType.zenPack;
       case 'retro_sound':
         return SoundPackType.retroPack;
+      case 'fart_sound':
+        return SoundPackType.fartPack;
       default:
         return SoundPackType.defaultPack;
     }
@@ -40,11 +42,13 @@ class AudioProvider extends ChangeNotifier {
   String _getSoundPath(String soundName) {
     switch (_currentPack) {
       case SoundPackType.zenPack:
-        return 'audio/zen_$soundName.mp3';
+        return 'audio/zen/$soundName.mp3';
       case SoundPackType.retroPack:
-        return 'audio/retro_$soundName.mp3';
+        return 'audio/retro/$soundName.mp3';
       case SoundPackType.defaultPack:
-        return 'audio/$soundName.mp3';
+        return 'audio/standard/$soundName.mp3';
+      case SoundPackType.fartPack:
+        return 'audio/fart/$soundName.mp3';
     }
   }
 
@@ -52,11 +56,13 @@ class AudioProvider extends ChangeNotifier {
   String _getMusicPath() {
     switch (_currentPack) {
       case SoundPackType.zenPack:
-        return 'audio/zen_background.mp3';
+        return 'audio/zen/background.mp3';
       case SoundPackType.retroPack:
-        return 'audio/retro_background.mp3';
+        return 'audio/retro/background.mp3';
       case SoundPackType.defaultPack:
-        return 'audio/background.mp3';
+        return 'audio/standard/background.mp3';
+      case SoundPackType.fartPack:
+        return 'audio/standard/background.mp3';
     }
   }
 
@@ -104,7 +110,7 @@ class AudioProvider extends ChangeNotifier {
     } catch (e) {
       // Fallback to default background music if pack music not found
       try {
-        await _musicPlayer.play(AssetSource('audio/background.mp3'));
+        await _musicPlayer.play(AssetSource('audio/standard/background.mp3'));
         _isMusicPlaying = true;
         notifyListeners();
       } catch (e2) {
@@ -147,7 +153,7 @@ class AudioProvider extends ChangeNotifier {
       // Fallback to default sound
       try {
         final player = AudioPlayer();
-        await player.play(AssetSource('audio/place.mp3'));
+        await player.play(AssetSource('audio/standard/place.mp3'));
         player.onPlayerComplete.listen((_) {
           player.dispose();
         });
@@ -162,9 +168,15 @@ class AudioProvider extends ChangeNotifier {
     if (!isSoundEnabled) return;
 
     try {
-      await _sfxPlayer.play(AssetSource('audio/mouse.mp3'));
+      final soundPath = _getSoundPath('ui_tap');
+      await _sfxPlayer.play(AssetSource(soundPath));
     } catch (e) {
-      debugPrint('Failed to play mouse sound: $e');
+      // Fallback to default sound
+      try {
+        await _sfxPlayer.play(AssetSource('audio/standard/ui_tap.mp3'));
+      } catch (e2) {
+        debugPrint('Failed to play mouse sound: $e2');
+      }
     }
   }
 
@@ -179,7 +191,7 @@ class AudioProvider extends ChangeNotifier {
     } catch (e) {
       // Fallback to default sound
       try {
-        await _sfxPlayer.play(AssetSource('audio/glass.mp3'));
+        await _sfxPlayer.play(AssetSource('audio/standard/lose.mp3'));
       } catch (e2) {
         debugPrint('Failed to play glass sound: $e2');
       }
@@ -196,7 +208,7 @@ class AudioProvider extends ChangeNotifier {
     } catch (e) {
       // Fallback to default sound
       try {
-        await _sfxPlayer.play(AssetSource('audio/win.mp3'));
+        await _sfxPlayer.play(AssetSource('audio/standard/win.mp3'));
       } catch (e2) {
         debugPrint('Failed to play win sound: $e2');
       }
@@ -208,9 +220,15 @@ class AudioProvider extends ChangeNotifier {
     if (!isSoundEnabled) return;
 
     try {
-      await _sfxPlayer.play(AssetSource('audio/ui_tap.mp3'));
+      final soundPath = _getSoundPath('ui_tap');
+      await _sfxPlayer.play(AssetSource(soundPath));
     } catch (e) {
-      debugPrint('Failed to play UI tap sound: $e');
+      // Fallback to default sound
+      try {
+        await _sfxPlayer.play(AssetSource('audio/standard/ui_tap.mp3'));
+      } catch (e2) {
+        debugPrint('Failed to play UI tap sound: $e2');
+      }
     }
   }
 

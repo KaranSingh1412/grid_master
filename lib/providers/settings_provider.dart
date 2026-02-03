@@ -7,7 +7,6 @@ import '../models/game_models.dart';
 class SettingsProvider extends ChangeNotifier {
   GameSettings _settings = const GameSettings();
   ModeProgress _classicProgress = const ModeProgress();
-  ModeProgress _colorZenProgress = const ModeProgress();
   bool _isLoaded = false;
 
   GameSettings get settings => _settings;
@@ -19,7 +18,6 @@ class SettingsProvider extends ChangeNotifier {
   bool get isLoaded => _isLoaded;
 
   ModeProgress get classicProgress => _classicProgress;
-  ModeProgress get colorZenProgress => _colorZenProgress;
 
   SettingsProvider() {
     _loadSettings();
@@ -41,13 +39,6 @@ class SettingsProvider extends ChangeNotifier {
       if (classicString != null) {
         final json = jsonDecode(classicString) as Map<String, dynamic>;
         _classicProgress = ModeProgress.fromJson(json);
-      }
-
-      // Load color zen mode progress
-      final colorZenString = prefs.getString('colorZenProgress');
-      if (colorZenString != null) {
-        final json = jsonDecode(colorZenString) as Map<String, dynamic>;
-        _colorZenProgress = ModeProgress.fromJson(json);
       }
     } catch (e) {
       // Use defaults on error
@@ -72,10 +63,6 @@ class SettingsProvider extends ChangeNotifier {
         'classicProgress',
         jsonEncode(_classicProgress.toJson()),
       );
-      await prefs.setString(
-        'colorZenProgress',
-        jsonEncode(_colorZenProgress.toJson()),
-      );
     } catch (e) {
       // Ignore save errors
     }
@@ -89,9 +76,7 @@ class SettingsProvider extends ChangeNotifier {
     bool incrementGamesPlayed = false,
     bool incrementPerfectLevels = false,
   }) {
-    ModeProgress current = mode == GameMode.classic
-        ? _classicProgress
-        : _colorZenProgress;
+    ModeProgress current = _classicProgress;
 
     final updated = ModeProgress(
       highScore: highScore != null && highScore > current.highScore
@@ -107,12 +92,7 @@ class SettingsProvider extends ChangeNotifier {
           ? current.perfectLevels + 1
           : current.perfectLevels,
     );
-
-    if (mode == GameMode.classic) {
-      _classicProgress = updated;
-    } else {
-      _colorZenProgress = updated;
-    }
+    _classicProgress = updated;
 
     _saveProgress();
     notifyListeners();
@@ -120,7 +100,7 @@ class SettingsProvider extends ChangeNotifier {
 
   /// Get progress for a specific mode
   ModeProgress getProgress(GameMode mode) {
-    return mode == GameMode.classic ? _classicProgress : _colorZenProgress;
+    return _classicProgress;
   }
 
   void setBrightness(int value) {

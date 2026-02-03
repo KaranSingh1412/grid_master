@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:grid_master/providers/audio_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -9,6 +10,7 @@ import '../../providers/credit_provider.dart';
 import '../../providers/ads_provider.dart';
 import '../../providers/purchases_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../providers/theme_provider.dart';
 
 /// Credit package definition
 class CreditPackage {
@@ -83,14 +85,24 @@ class _ShopScreenState extends State<ShopScreen>
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    final isDefaultTheme =
+        themeProvider.currentThemeType == CosmeticThemeType.defaultTheme;
+    final backgroundColor = isDefaultTheme
+        ? GameColors.slate900
+        : themeProvider.backgroundColor;
+    final surfaceColor = isDefaultTheme
+        ? GameColors.slate800
+        : themeProvider.surfaceColor;
+
     return Scaffold(
-      backgroundColor: GameColors.slate900,
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: GameColors.slate900,
+        backgroundColor: backgroundColor,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => context.pop(),
         ),
         title: Text(
           'shop_title'.tr(),
@@ -103,9 +115,9 @@ class _ShopScreenState extends State<ShopScreen>
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
-          indicatorColor: GameColors.amber400,
-          labelColor: GameColors.amber400,
-          unselectedLabelColor: GameColors.slate400,
+          indicatorColor: themeProvider.accentColor,
+          labelColor: themeProvider.accentColor,
+          unselectedLabelColor: themeProvider.textSecondaryColor,
           labelStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -130,10 +142,8 @@ class _ShopScreenState extends State<ShopScreen>
                   vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: GameColors.slate800.withValues(alpha: 0.5),
-                  border: Border(
-                    bottom: BorderSide(color: GameColors.slate700),
-                  ),
+                  color: surfaceColor.withValues(alpha: 0.5),
+                  border: Border(bottom: BorderSide(color: surfaceColor)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -145,7 +155,7 @@ class _ShopScreenState extends State<ShopScreen>
                       style: GoogleFonts.fredoka(
                         fontSize: 20,
                         fontWeight: FontWeight.w600,
-                        color: GameColors.amber400,
+                        color: themeProvider.accentColor,
                       ),
                     ),
                   ],
@@ -752,6 +762,10 @@ class _ShopCosmeticCategoryList extends StatelessWidget {
               coinCredits: credits.credits,
               onEquip: () {
                 credits.equipCosmetic(item);
+                // Theme sofort aktualisieren wenn ein Theme ausgewählt wird
+                if (item.category == CosmeticCategory.theme) {
+                  context.read<ThemeProvider>().updateFromThemeId(item.id);
+                }
                 if (item.category == CosmeticCategory.soundPack) {
                   audioProvider.setEquippedSoundPack(item.id);
                   audioProvider.restartBackgroundMusic();

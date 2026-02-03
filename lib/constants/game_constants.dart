@@ -108,13 +108,13 @@ class CosmeticThemeColors {
     textPrimary: Color(0xFFE8F4F8),
     textSecondary: Color(0xFF8BA9B5),
     gameColors: [
-      Color(0xFF7DD3C0), // Soft teal
-      Color(0xFFB8D4E3), // Pale blue
-      Color(0xFFA8E6CF), // Mint
-      Color(0xFFDCEDC1), // Soft green
-      Color(0xFFFFD3A5), // Peach
-      Color(0xFFE2B4BD), // Dusty rose
-      Color(0xFFC5CAE9), // Lavender
+      Color(0xFFE57373), // Soft coral red
+      Color(0xFF64B5F6), // Sky blue
+      Color(0xFF81C784), // Sage green
+      Color(0xFFFFD54F), // Warm yellow
+      Color(0xFFBA68C8), // Soft purple
+      Color(0xFFFFB74D), // Soft orange
+      Color(0xFF4DD0E1), // Turquoise
     ],
   );
 
@@ -310,6 +310,12 @@ const List<CosmeticItem> allCosmetics = [
     category: CosmeticCategory.gridStyle,
     cosmeticCost: 150,
   ),
+  CosmeticItem(
+    id: 'sharp_grid',
+    nameKey: 'cosmetic_sharp_grid',
+    category: CosmeticCategory.gridStyle,
+    cosmeticCost: 75,
+  ),
 
   // Cell animations
   CosmeticItem(
@@ -349,6 +355,12 @@ const List<CosmeticItem> allCosmetics = [
     cosmeticCost: 80,
   ),
   CosmeticItem(
+    id: 'fart_sound',
+    nameKey: 'cosmetic_fart_sound',
+    category: CosmeticCategory.soundPack,
+    cosmeticCost: 100,
+  ),
+  CosmeticItem(
     id: 'retro_sound',
     nameKey: 'cosmetic_retro_sound',
     category: CosmeticCategory.soundPack,
@@ -374,16 +386,10 @@ List<LevelConfig> generateLevels() {
   int currentGridSize = 3;
 
   for (int i = 1; i <= 200; i++) {
-    // Determine grid size based on pattern size
-    if (currentPatternSize > 42) {
-      currentGridSize = 8;
-    } else if (currentPatternSize > 30) {
-      currentGridSize = 7;
-    } else if (currentPatternSize > 20) {
-      currentGridSize = 6;
-    } else if (currentPatternSize > 12) {
+    // Determine grid size based on pattern size - Maximum 5x5
+    if (currentPatternSize > 16) {
       currentGridSize = 5;
-    } else if (currentPatternSize > 6) {
+    } else if (currentPatternSize > 9) {
       currentGridSize = 4;
     } else {
       currentGridSize = 3;
@@ -395,32 +401,36 @@ List<LevelConfig> generateLevels() {
       difficulty = 'difficulty_medium';
     } else if (currentGridSize == 5) {
       difficulty = 'difficulty_advanced';
-    } else if (currentGridSize == 6) {
-      difficulty = 'difficulty_pro';
-    } else if (currentGridSize == 7) {
-      difficulty = 'difficulty_elite';
-    } else if (currentGridSize >= 8) {
-      difficulty = 'difficulty_master';
     }
 
+    if (i > 30) {
+      difficulty = 'difficulty_pro';
+    }
     if (i > 50) {
       difficulty = 'difficulty_legend';
     }
 
-    final previewSeconds = (5 - (i * 0.05)).clamp(1.5, 5.0);
+    // Mehr Preview-Zeit: Start bei 5.5s, langsamer abnehmend, Minimum 2.5s
+    final previewSeconds = (5.5 - (i * 0.03)).clamp(2.5, 5.5);
+
+    // Pattern-Größe auf 5x5 Grid begrenzen (max 25 Zellen)
+    final clampedPatternSize = currentPatternSize.clamp(4, 25);
 
     levels.add(
       LevelConfig(
         id: i,
         gridSize: currentGridSize,
-        colorCount: (3 + (i / 8).floor()).clamp(3, 7),
-        patternSize: currentPatternSize,
+        // Maximal 5 Farben
+        colorCount: (3 + (i / 12).floor()).clamp(3, 5),
+        patternSize: clampedPatternSize,
         previewSeconds: double.parse(previewSeconds.toStringAsFixed(1)),
         difficulty: difficulty,
       ),
     );
 
-    if (i >= 3) {
+    // Langsamere Pattern-Steigerung: nur alle 2 Level ab Level 3
+    // Stoppt bei 25 (5x5 Grid voll)
+    if (i >= 3 && i % 2 == 0 && currentPatternSize < 25) {
       currentPatternSize++;
     }
   }
@@ -431,73 +441,13 @@ List<LevelConfig> generateLevels() {
 /// Pre-generated levels list
 final List<LevelConfig> levels = generateLevels();
 
-/// Generate Color Zen levels with calmer pacing
-/// - Longer preview times (relaxed memorization)
-/// - Slower difficulty curve
-/// - Fewer colors (less overwhelming)
-/// - Smaller grids that grow gradually
-List<LevelConfig> generateColorZenLevels() {
-  final List<LevelConfig> zenLevels = [];
-  int currentPatternSize = 3; // Start smaller than classic
-  int currentGridSize = 3;
-
-  for (int i = 1; i <= 50; i++) {
-    // Slower grid size progression
-    if (currentPatternSize > 25) {
-      currentGridSize = 6; // Max 6x6 for Zen mode
-    } else if (currentPatternSize > 16) {
-      currentGridSize = 5;
-    } else if (currentPatternSize > 9) {
-      currentGridSize = 4;
-    } else {
-      currentGridSize = 3;
-    }
-
-    // Zen-specific difficulty labels
-    String difficulty = 'zen_beginner';
-    if (currentGridSize == 4) {
-      difficulty = 'zen_flowing';
-    } else if (currentGridSize == 5) {
-      difficulty = 'zen_harmony';
-    } else if (currentGridSize >= 6) {
-      difficulty = 'zen_master';
-    }
-
-    // Longer preview times - more relaxed
-    final previewSeconds = (8 - (i * 0.08)).clamp(3.0, 8.0);
-
-    // Fewer colors - max 5 instead of 7
-    final colorCount = (2 + (i / 12).floor()).clamp(2, 5);
-
-    zenLevels.add(
-      LevelConfig(
-        id: i,
-        gridSize: currentGridSize,
-        colorCount: colorCount,
-        patternSize: currentPatternSize,
-        previewSeconds: double.parse(previewSeconds.toStringAsFixed(1)),
-        difficulty: difficulty,
-      ),
-    );
-
-    // Slower pattern size increase
-    if (i >= 2 && i % 2 == 0) {
-      currentPatternSize++;
-    }
-  }
-
-  return zenLevels;
-}
-
-/// Pre-generated Color Zen levels list
-final List<LevelConfig> colorZenLevels = generateColorZenLevels();
-
 /// Get levels for a specific game mode
 List<LevelConfig> getLevelsForMode(GameMode mode) {
-  switch (mode) {
-    case GameMode.classic:
-      return levels;
-    case GameMode.colorZen:
-      return colorZenLevels;
-  }
+  return levels;
+  // switch (mode) {
+  //   case GameMode.classic:
+  //     return levels;
+  //   default:
+  //     return levels;
+  // }
 }

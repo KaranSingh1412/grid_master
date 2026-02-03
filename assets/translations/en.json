@@ -43,15 +43,9 @@
   "difficulty_legend": "Legend",
   
   "game_mode_classic": "Classic",
-  "game_mode_color_zen": "Color Zen",
   "game_mode_classic_desc": "The original challenge - 200 levels of increasing difficulty",
   "game_mode_color_zen_desc": "A calming experience with softer colors and relaxed timing",
   "select_mode": "Select Game Mode",
-  "zen_beginner": "Peaceful",
-  "zen_flowing": "Flowing",
-  "zen_harmony": "Harmony",
-  "zen_master": "Enlightened",
-  "zen_mode_bonus": "Zen Bonus: More hints & time!",
   
   "cosmetics_title": "COSMETICS",
   "cosmetics_themes": "Themes",
@@ -88,6 +82,7 @@
   "cosmetic_rounded_grid": "Rounded",
   "cosmetic_glow_grid": "Glowing",
   "cosmetic_neon_border": "Neon Border",
+  "cosmetic_sharp_grid": "Sharp Edges",
   
   "cosmetic_default_animation": "Simple",
   "cosmetic_pulse": "Pulse",
@@ -96,6 +91,7 @@
   
   "cosmetic_default_sound": "Original",
   "cosmetic_zen_sound": "Zen Sounds",
+  "cosmetic_fart_sound": "Fart Sounds",
   "cosmetic_retro_sound": "Retro",
   
   "shop_title": "SHOP",

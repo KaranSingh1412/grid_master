@@ -95,66 +95,77 @@ class _GameScreenState extends State<GameScreen>
       }
     });
 
-    return SafeArea(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final screenHeight = constraints.maxHeight;
-          final isSmallScreen = screenHeight < 600;
-          final spacing = isSmallScreen ? 6.0 : 12.0;
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final screenHeight = constraints.maxHeight;
+            final isSmallScreen = screenHeight < 600;
+            final spacing = isSmallScreen ? 6.0 : 12.0;
 
-          return Stack(
-            children: [
-              // Main game content
-              Column(
-                children: [
-                  // Header
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: GameHeader(isSmallScreen: isSmallScreen),
-                  ),
+            return Stack(
+              children: [
+                // Main game content
+                Column(
+                  children: [
+                    // Header
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: GameHeader(isSmallScreen: isSmallScreen),
+                    ),
 
-                  SizedBox(height: spacing * 0.5),
+                    SizedBox(height: spacing * 0.5),
 
-                  // Timer progress bar
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: _buildTimerBar(gameProvider),
-                  ),
+                    // Timer progress bar
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: _buildTimerBar(gameProvider),
+                    ),
 
-                  SizedBox(height: spacing * 0.5),
+                    SizedBox(height: spacing * 0.5),
 
-                  // Info row with label, timer, and buttons
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: _buildInfoRow(context, gameProvider, isSmallScreen),
-                  ),
+                    // Info row with label, timer, and buttons
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: _buildInfoRow(
+                        context,
+                        gameProvider,
+                        isSmallScreen,
+                      ),
+                    ),
 
-                  SizedBox(height: spacing),
+                    SizedBox(height: spacing),
 
-                  // Grid
-                  Flexible(child: GameGrid(isSmallScreen: isSmallScreen)),
+                    // Grid
+                    Flexible(child: GameGrid(isSmallScreen: isSmallScreen)),
 
-                  SizedBox(height: spacing),
+                    SizedBox(height: spacing),
 
-                  // Controls area
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: _buildControls(context, gameProvider, isSmallScreen),
-                  ),
+                    // Controls area
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: _buildControls(
+                        context,
+                        gameProvider,
+                        isSmallScreen,
+                      ),
+                    ),
 
-                  SizedBox(height: spacing),
+                    SizedBox(height: spacing),
 
-                  // Ad Banner at the bottom
-                  _buildAdBanner(context),
-                ],
-              ),
+                    // Ad Banner at the bottom
+                    _buildAdBanner(context),
+                  ],
+                ),
 
-              // Overlays
-              if (gameProvider.isPaused) const PauseOverlay(),
-              if (gameProvider.isGameOver) const FeedbackOverlay(),
-            ],
-          );
-        },
+                // Overlays
+                if (gameProvider.isPaused) const PauseOverlay(),
+                if (gameProvider.isGameOver) const FeedbackOverlay(),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

@@ -11,7 +11,7 @@ enum GameState {
 }
 
 /// Game mode types
-enum GameMode { classic, colorZen }
+enum GameMode { classic }
 
 /// Color types available in the game
 enum ColorType { red, blue, green, yellow, purple, orange, pink, none }

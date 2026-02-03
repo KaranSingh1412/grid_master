@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../constants/game_constants.dart';
@@ -6,6 +7,7 @@ import '../../models/game_models.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/ads_provider.dart';
 import '../../providers/audio_provider.dart';
+import '../../router/app_router.dart';
 
 /// Game over overlay matching the React FeedbackOverlay
 class FeedbackOverlay extends StatefulWidget {
@@ -145,6 +147,7 @@ class _FeedbackOverlayState extends State<FeedbackOverlay> {
             () {
               context.read<AudioProvider>().playBackgroundMusic();
               gameProvider.goToHome();
+              context.go(AppRoutes.home);
             },
             textColor: GameColors.slate300,
           ),

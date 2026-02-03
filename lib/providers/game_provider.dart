@@ -6,14 +6,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/game_models.dart';
 import '../constants/game_constants.dart';
 import 'audio_provider.dart';
-import 'settings_provider.dart';
-import 'credit_provider.dart';
 
 /// Main game state provider with complete game logic
 class GameProvider extends ChangeNotifier {
   GameState _gameState = GameState.start;
   GameState _lastActiveState = GameState.preview;
-  GameMode _currentMode = GameMode.classic;
   int _currentLevelIdx = 0;
   ScoreState _score = const ScoreState();
   List<GridCell> _targetPattern = [];
@@ -28,19 +25,12 @@ class GameProvider extends ChangeNotifier {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final Random _random = Random();
   AudioProvider? _audioProvider;
-  SettingsProvider? _settingsProvider;
-  CreditProvider? _creditProvider;
 
   // Getters
   GameState get gameState => _gameState;
   GameState get lastActiveState => _lastActiveState;
-  GameMode get currentMode => _currentMode;
   int get currentLevelIdx => _currentLevelIdx;
-
-  /// Get levels for current mode
-  List<LevelConfig> get currentLevels => getLevelsForMode(_currentMode);
-  LevelConfig get currentLevel => currentLevels[_currentLevelIdx];
-
+  LevelConfig get currentLevel => levels[_currentLevelIdx];
   ScoreState get score => _score;
   List<GridCell> get targetPattern => _targetPattern;
   List<GridCell> get userPattern => _userPattern;
@@ -50,16 +40,8 @@ class GameProvider extends ChangeNotifier {
   int get hints => _hints;
   double get timerProgress => _maxTimer > 0 ? _timer / _maxTimer : 0;
 
-  /// Rebuild time limit - Color Zen mode gives more time
-  int get rebuildTimeLimit {
-    if (_currentMode == GameMode.colorZen) {
-      return currentLevel.gridSize > 4 ? 18 : 12; // More time for zen mode
-    }
-    return currentLevel.gridSize > 3 ? 12 : 7;
-  }
-
+  int get rebuildTimeLimit => currentLevel.gridSize > 3 ? 12 : 7;
   bool get hasDoubleBonus => _hasDoubleBonus;
-  bool get isColorZenMode => _currentMode == GameMode.colorZen;
 
   bool get isPreview => _gameState == GameState.preview;
   bool get isRebuild => _gameState == GameState.rebuild;
@@ -79,43 +61,16 @@ class GameProvider extends ChangeNotifier {
     _audioProvider = audioProvider;
   }
 
-  /// Set the settings provider for progress tracking
-  void setSettingsProvider(SettingsProvider settingsProvider) {
-    _settingsProvider = settingsProvider;
-  }
-
-  /// Set the credit provider for cosmetic rewards
-  void setCreditProvider(CreditProvider creditProvider) {
-    _creditProvider = creditProvider;
-  }
-
-  /// Set the current game mode
-  void setGameMode(GameMode mode) {
-    _currentMode = mode;
-    _loadHighScore();
-    notifyListeners();
-  }
-
   Future<void> _loadHighScore() async {
     final prefs = await SharedPreferences.getInstance();
-    // Load mode-specific high score
-    final key = _currentMode == GameMode.colorZen
-        ? 'colorZenHighScore'
-        : 'highScore';
-    final highScore = prefs.getInt(key) ?? 0;
-    _score = _score.copyWith(highScore: highScore, gameMode: _currentMode);
+    final highScore = prefs.getInt('highScore') ?? 0;
+    _score = _score.copyWith(highScore: highScore);
     notifyListeners();
   }
 
   Future<void> _saveHighScore(int score) async {
     final prefs = await SharedPreferences.getInstance();
-    final key = _currentMode == GameMode.colorZen
-        ? 'colorZenHighScore'
-        : 'highScore';
-    await prefs.setInt(key, score);
-
-    // Also update settings provider progress
-    _settingsProvider?.updateModeProgress(_currentMode, highScore: score);
+    await prefs.setInt('highScore', score);
   }
 
   /// Generate a random pattern for the current level
@@ -163,18 +118,9 @@ class GameProvider extends ChangeNotifier {
   /// Start the game from the start screen
   void startGame() {
     _currentLevelIdx = 0;
-    _score = ScoreState(highScore: _score.highScore, gameMode: _currentMode);
-    _hints = _currentMode == GameMode.colorZen
-        ? 5
-        : 3; // More hints in Zen mode
+    _score = ScoreState(highScore: _score.highScore);
+    _hints = 3;
     _hasUsedContinueThisRound = false;
-
-    // Update games played count
-    _settingsProvider?.updateModeProgress(
-      _currentMode,
-      incrementGamesPlayed: true,
-    );
-
     startLevel();
   }
 
@@ -295,22 +241,10 @@ class GameProvider extends ChangeNotifier {
         bestCombo: newBestCombo,
         level: currentLevel.id + 1,
         highScore: newHighScore,
-        gameMode: _currentMode,
       );
 
       _gameState = GameState.levelUp;
       _audioProvider?.playWinSound();
-
-      // Award credits (replaces cosmetic credits - now uses regular coins)
-      _creditProvider?.checkAndAwardCredits(newPoints);
-
-      // Update highest level in progress
-      _settingsProvider?.updateModeProgress(
-        _currentMode,
-        highestLevel: currentLevel.id + 1,
-        incrementPerfectLevels: true,
-      );
-
       notifyListeners();
 
       // Auto-proceed to next level
@@ -324,7 +258,7 @@ class GameProvider extends ChangeNotifier {
   }
 
   void _handleNextLevel() {
-    _currentLevelIdx = min(_currentLevelIdx + 1, currentLevels.length - 1);
+    _currentLevelIdx = min(_currentLevelIdx + 1, levels.length - 1);
     startLevel();
   }
 
@@ -464,8 +398,8 @@ class GameProvider extends ChangeNotifier {
   void goToHome() {
     _gameTimer?.cancel();
     _currentLevelIdx = 0;
-    _score = ScoreState(highScore: _score.highScore, gameMode: _currentMode);
-    _hints = _currentMode == GameMode.colorZen ? 5 : 3;
+    _score = ScoreState(highScore: _score.highScore);
+    _hints = 3;
     _targetPattern = [];
     _gameState = GameState.start;
     notifyListeners();
@@ -475,17 +409,10 @@ class GameProvider extends ChangeNotifier {
   void restart() {
     _gameTimer?.cancel();
     _currentLevelIdx = 0;
-    _score = ScoreState(highScore: _score.highScore, gameMode: _currentMode);
-    _hints = _currentMode == GameMode.colorZen ? 5 : 3;
+    _score = ScoreState(highScore: _score.highScore);
+    _hints = 3;
     _hasUsedContinueThisRound = false;
     _targetPattern = [];
-
-    // Update games played count
-    _settingsProvider?.updateModeProgress(
-      _currentMode,
-      incrementGamesPlayed: true,
-    );
-
     startLevel();
   }
 

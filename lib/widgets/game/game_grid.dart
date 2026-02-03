@@ -6,6 +6,7 @@ import '../../models/game_models.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/audio_provider.dart';
 import '../../providers/credit_provider.dart';
+import '../../providers/theme_provider.dart';
 
 /// Game grid component matching the React implementation
 class GameGrid extends StatelessWidget {
@@ -17,10 +18,10 @@ class GameGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final gameProvider = context.watch<GameProvider>();
     final creditProvider = context.watch<CreditProvider>();
+    final themeProvider = context.watch<ThemeProvider>();
 
-    // Get the equipped theme and grid style
-    final themeType = creditProvider.equippedThemeType;
-    final themeColors = CosmeticThemeColors.getTheme(themeType);
+    // Get the equipped theme and grid style from ThemeProvider
+    final themeColors = themeProvider.colors;
     final gridStyleId = creditProvider.cosmeticState.equippedGridStyleId;
     final animationId = creditProvider.cosmeticState.equippedCellAnimationId;
 
@@ -116,6 +117,8 @@ class GameGrid extends StatelessWidget {
         return 20.0;
       case 'neon_border_grid':
         return 12.0;
+      case 'sharp_grid':
+        return 3.0;
       default:
         return 16.0;
     }
@@ -221,14 +224,15 @@ class _GridCellState extends State<_GridCell> with TickerProviderStateMixin {
     // Cosmetic animation controller for pulse/bounce/sparkle
     _cosmeticAnimController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 800),
     );
     _startCosmeticAnimation();
   }
 
   void _startCosmeticAnimation() {
     if (widget.animationId == 'pulse_animation' ||
-        widget.animationId == 'sparkle_animation') {
+        widget.animationId == 'sparkle_animation' ||
+        widget.animationId == 'bounce_animation') {
       _cosmeticAnimController.repeat(reverse: true);
     }
   }
@@ -245,6 +249,12 @@ class _GridCellState extends State<_GridCell> with TickerProviderStateMixin {
     if (widget.isErrorCell && !_errorGlowShown) {
       _errorGlowShown = true;
       _errorGlowController.forward();
+    }
+    // Restart cosmetic animation if animationId changed
+    if (oldWidget.animationId != widget.animationId) {
+      _cosmeticAnimController.stop();
+      _cosmeticAnimController.reset();
+      _startCosmeticAnimation();
     }
   }
 
@@ -281,6 +291,8 @@ class _GridCellState extends State<_GridCell> with TickerProviderStateMixin {
         return 10.0;
       case 'neon_border_grid':
         return 4.0;
+      case 'sharp_grid':
+        return 3.0;
       default:
         return 6.0;
     }
@@ -326,14 +338,25 @@ class _GridCellState extends State<_GridCell> with TickerProviderStateMixin {
           if (!isEmpty) {
             switch (widget.animationId) {
               case 'pulse_animation':
-                cosmeticScale = 1.0 + (_cosmeticAnimController.value * 0.05);
-                cosmeticGlow = _cosmeticAnimController.value * 0.3;
+                // Deutlicheres Pulsieren: 8% Skalierung
+                cosmeticScale = 1.0 + (_cosmeticAnimController.value * 0.08);
+                cosmeticGlow = _cosmeticAnimController.value * 0.5;
                 break;
               case 'bounce_animation':
-                // Bounce happens on tap, handled by _scaleAnimation
+                // Bounce-Effekt: deutliche Hüpf-Bewegung
+                final bounceValue = _cosmeticAnimController.value;
+                // Easing für natürlicheren Bounce
+                final bounce = bounceValue < 0.5
+                    ? (bounceValue * 2) *
+                          (bounceValue * 2) // Hoch
+                    : 1.0 -
+                          ((bounceValue - 0.5) * 2) *
+                              ((bounceValue - 0.5) * 2); // Runter
+                cosmeticScale = 1.0 + (bounce * 0.12);
                 break;
               case 'sparkle_animation':
-                cosmeticGlow = _cosmeticAnimController.value * 0.5;
+                // Stärkeres Funkeln mit Helligkeitsänderung
+                cosmeticGlow = 0.3 + (_cosmeticAnimController.value * 0.7);
                 break;
             }
           }

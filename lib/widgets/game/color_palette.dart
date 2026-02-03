@@ -4,6 +4,7 @@ import '../../constants/game_constants.dart';
 import '../../models/game_models.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/credit_provider.dart';
+import '../../providers/theme_provider.dart';
 
 /// Color palette for selecting colors in rebuild mode
 class ColorPalette extends StatelessWidget {
@@ -15,6 +16,7 @@ class ColorPalette extends StatelessWidget {
   Widget build(BuildContext context) {
     final gameProvider = context.watch<GameProvider>();
     final creditProvider = context.watch<CreditProvider>();
+    final themeProvider = context.watch<ThemeProvider>();
 
     final colorCount = gameProvider.currentLevel.colorCount;
     final availableColors = colorOptions.take(colorCount).toList();
@@ -31,9 +33,11 @@ class ColorPalette extends StatelessWidget {
     Widget palette = Container(
       padding: EdgeInsets.all(containerPadding),
       decoration: BoxDecoration(
-        color: GameColors.slate800.withValues(alpha: 0.6),
+        color: themeProvider.surfaceColor.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: GameColors.slate700.withValues(alpha: 0.5)),
+        border: Border.all(
+          color: themeProvider.surfaceColor.withValues(alpha: 0.8),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -45,6 +49,7 @@ class ColorPalette extends StatelessWidget {
               padding: EdgeInsets.symmetric(horizontal: buttonSpacing),
               child: _PaletteButton(
                 color: color,
+                displayColor: themeProvider.getGameColor(color),
                 isSelected: selectedColor == color,
                 onTap: () => gameProvider.selectColor(color),
                 isSmallScreen: isSmallScreen,
@@ -80,12 +85,14 @@ class ColorPalette extends StatelessWidget {
 
 class _PaletteButton extends StatefulWidget {
   final ColorType color;
+  final Color displayColor;
   final bool isSelected;
   final VoidCallback onTap;
   final bool isSmallScreen;
 
   const _PaletteButton({
     required this.color,
+    required this.displayColor,
     required this.isSelected,
     required this.onTap,
     this.isSmallScreen = false,
@@ -121,7 +128,7 @@ class _PaletteButtonState extends State<_PaletteButton>
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = GameColors.getColor(widget.color);
+    final baseColor = widget.displayColor;
 
     return GestureDetector(
       onTapDown: (_) => _controller.forward(),

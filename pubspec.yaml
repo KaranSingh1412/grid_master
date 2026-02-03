@@ -22,6 +22,7 @@ dependencies:
   purchases_flutter: ^9.10.4
   purchases_ui_flutter: ^9.10.4
   audio_session: ^0.2.2
+  go_router: ^17.0.1
 
 dev_dependencies:
   flutter_test:
@@ -35,4 +36,6 @@ flutter:
     - .env
     - assets/translations/
     - assets/audio/
+    - assets/audio/standard/
+    - assets/audio/fart/
     - assets/img/

@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../constants/game_constants.dart';
-import '../../models/game_models.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/ads_provider.dart';
 import '../../providers/credit_provider.dart';
 import '../../providers/audio_provider.dart';
-import '../dialogs/settings_dialog.dart';
-import 'shop_screen.dart';
-import 'mode_selection_screen.dart';
+import '../../router/app_router.dart';
 
 /// Start screen matching the React implementation
 class StartScreen extends StatefulWidget {
@@ -26,6 +24,8 @@ class _StartScreenState extends State<StartScreen>
   late AnimationController _glowController;
   late AnimationController _gridTileController;
   late AnimationController _playButtonController;
+  late AnimationController _shopButtonController;
+  late AnimationController _bonusButtonController;
   int _activeTileIndex = 0;
 
   @override
@@ -47,6 +47,18 @@ class _StartScreenState extends State<StartScreen>
     _playButtonController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
+    )..repeat(reverse: true);
+
+    // Shop button pulse animation
+    _shopButtonController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+
+    // Bonus button pulse animation
+    _bonusButtonController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
     )..repeat(reverse: true);
 
     // Start background music when entering start screen
@@ -85,29 +97,21 @@ class _StartScreenState extends State<StartScreen>
     _glowController.dispose();
     _gridTileController.dispose();
     _playButtonController.dispose();
+    _shopButtonController.dispose();
+    _bonusButtonController.dispose();
     super.dispose();
   }
 
   void _openShop(BuildContext context) {
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const ShopScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        barrierDismissible: false,
-      ),
-    );
+    context.push(AppRoutes.shop);
   }
 
   void _startClassicMode(BuildContext context) {
     final gameProvider = context.read<GameProvider>();
     final creditProvider = context.read<CreditProvider>();
-
-    gameProvider.setGameMode(GameMode.classic);
     creditProvider.resetThreshold();
     gameProvider.startGame();
+    context.go(AppRoutes.game);
   }
 
   @override
@@ -115,75 +119,60 @@ class _StartScreenState extends State<StartScreen>
     final gameProvider = context.watch<GameProvider>();
     final highScore = gameProvider.score.highScore;
 
-    return SafeArea(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final screenHeight = constraints.maxHeight;
-          final isSmallScreen = screenHeight < 667.0;
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final screenHeight = constraints.maxHeight;
+            final isSmallScreen = screenHeight < 667.0;
 
-          // Responsive sizes
-          final titleSpacing = isSmallScreen ? 16.0 : 32.0;
-          final gridSpacing = isSmallScreen ? 16.0 : 32.0;
+            // Responsive sizes
+            final titleSpacing = isSmallScreen ? 16.0 : 32.0;
+            final gridSpacing = isSmallScreen ? 16.0 : 32.0;
 
-          final buttonSize = isSmallScreen ? 40.0 : 48.0;
-          final coinSize = isSmallScreen ? 20.0 : 24.0;
-          final titleFontSize = isSmallScreen ? 32.0 : 48.0;
-          final subtitleFontSize = isSmallScreen ? 10.0 : 14.0;
-          final gridSize = isSmallScreen ? 200.0 : 220.0;
+            final buttonSize = isSmallScreen ? 40.0 : 48.0;
+            final coinSize = isSmallScreen ? 20.0 : 24.0;
+            final titleFontSize = isSmallScreen ? 32.0 : 48.0;
+            final subtitleFontSize = isSmallScreen ? 10.0 : 14.0;
+            final gridSize = isSmallScreen ? 200.0 : 220.0;
 
-          return Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: isSmallScreen ? 8 : 24,
-            ),
-            child: Column(
-              children: [
-                // Top row with credits and settings
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Credits display
-                    _buildCreditsDisplay(context, coinSize: coinSize),
-                    // Settings button
-                    _buildSettingsButton(context, size: buttonSize),
-                  ],
-                ),
-
-                // Spacer to center the middle content
-                const Spacer(),
-
-                // Centered content
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Title with rotating glow
-                    _buildTitle(
-                      titleFontSize: titleFontSize,
-                      subtitleFontSize: subtitleFontSize,
-                      highScore: highScore,
-                    ),
-
-                    SizedBox(height: titleSpacing),
-
-                    // Decorative 2x2 grid
-                    _buildDecorativeGrid(size: gridSize),
-
-                    SizedBox(height: gridSpacing),
-
-                    // Start button and high score
-                    _buildStartSection(context, isSmallScreen: isSmallScreen),
-                  ],
-                ),
-
-                // Spacer to push ad banner to the bottom
-                const Spacer(),
-
-                // Banner Ad
-                _buildBannerAd(),
-              ],
-            ),
-          );
-        },
+            return Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: isSmallScreen ? 8 : 24,
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildCreditsDisplay(context, coinSize: coinSize),
+                      _buildSettingsButton(context, size: buttonSize),
+                    ],
+                  ),
+                  const Spacer(),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildTitle(
+                        titleFontSize: titleFontSize,
+                        subtitleFontSize: subtitleFontSize,
+                        highScore: highScore,
+                      ),
+                      SizedBox(height: titleSpacing),
+                      _buildDecorativeGrid(size: gridSize),
+                      SizedBox(height: gridSpacing),
+                      _buildStartSection(context, isSmallScreen: isSmallScreen),
+                    ],
+                  ),
+                  const Spacer(),
+                  _buildBannerAd(),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -268,25 +257,49 @@ class _StartScreenState extends State<StartScreen>
   }
 
   Widget _buildShopButton(BuildContext context, {required double size}) {
-    return GestureDetector(
-      onTap: () {
-        context.read<AudioProvider>().playUiTapSound();
-        _openShop(context);
+    return AnimatedBuilder(
+      animation: _shopButtonController,
+      builder: (context, child) {
+        final scale = 1.0 + (_shopButtonController.value * 0.08);
+        final glowOpacity = 0.3 + (_shopButtonController.value * 0.4);
+
+        return GestureDetector(
+          onTap: () {
+            context.read<AudioProvider>().playUiTapSound();
+            _openShop(context);
+          },
+          child: Transform.scale(
+            scale: scale,
+            child: Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    GameColors.violet500,
+                    Color(0xFF7C3AED), // violet-600
+                  ],
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: GameColors.violet500.withValues(alpha: glowOpacity),
+                    blurRadius: 16,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.storefront,
+                color: Colors.white,
+                size: size * 0.5,
+              ),
+            ),
+          ),
+        );
       },
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: GameColors.slate800.withValues(alpha: 0.5),
-          shape: BoxShape.circle,
-          border: Border.all(color: GameColors.slate700),
-        ),
-        child: Icon(
-          Icons.storefront,
-          color: GameColors.slate400,
-          size: size * 0.5,
-        ),
-      ),
     );
   }
 
@@ -654,9 +667,6 @@ class _StartScreenState extends State<StartScreen>
 
     return Column(
       children: [
-        // Game Modes Button
-        _buildGameModesButton(context, isSmallScreen: isSmallScreen),
-
         // x2 Bonus with Ad + Shop Button
         SizedBox(height: isSmallScreen ? 12 : 16),
         Row(
@@ -686,93 +696,54 @@ class _StartScreenState extends State<StartScreen>
     required bool isEnabled,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: isEnabled ? onTap : null,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 200),
-        opacity: isEnabled ? 1.0 : 0.4,
-        child: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                GameColors.amber400.withValues(alpha: 0.9),
-                GameColors.orange500.withValues(alpha: 0.9),
-              ],
-            ),
-            shape: BoxShape.circle,
-            boxShadow: isEnabled
-                ? [
-                    BoxShadow(
-                      color: GameColors.amber400.withValues(alpha: 0.4),
-                      blurRadius: 10,
-                      spreadRadius: 1,
-                    ),
-                  ]
-                : null,
-          ),
-          child: Center(child: icon),
-        ),
-      ),
-    );
-  }
+    return AnimatedBuilder(
+      animation: _bonusButtonController,
+      builder: (context, child) {
+        final scale = isEnabled
+            ? 1.0 + (_bonusButtonController.value * 0.1)
+            : 1.0;
+        final glowOpacity = isEnabled
+            ? 0.4 + (_bonusButtonController.value * 0.4)
+            : 0.0;
 
-  Widget _buildGameModesButton(
-    BuildContext context, {
-    required bool isSmallScreen,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        context.read<AudioProvider>().playUiTapSound();
-        _openModeSelection(context);
-      },
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          vertical: isSmallScreen ? 10 : 12,
-          horizontal: isSmallScreen ? 20 : 28,
-        ),
-        decoration: BoxDecoration(
-          color: GameColors.slate800.withValues(alpha: 0.8),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: GameColors.slate600, width: 1),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.grid_view_rounded,
-              color: GameColors.slate300,
-              size: isSmallScreen ? 18 : 20,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'game_modes'.tr().toUpperCase(),
-              style: TextStyle(
-                fontSize: isSmallScreen ? 12 : 14,
-                fontWeight: FontWeight.w700,
-                color: GameColors.slate300,
-                letterSpacing: 1.5,
+        return GestureDetector(
+          onTap: isEnabled ? onTap : null,
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 200),
+            opacity: isEnabled ? 1.0 : 0.4,
+            child: Transform.scale(
+              scale: scale,
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      GameColors.amber400.withValues(alpha: 0.9),
+                      GameColors.orange500.withValues(alpha: 0.9),
+                    ],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: isEnabled
+                      ? [
+                          BoxShadow(
+                            color: GameColors.amber400.withValues(
+                              alpha: glowOpacity,
+                            ),
+                            blurRadius: 14,
+                            spreadRadius: 2,
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Center(child: icon),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _openModeSelection(BuildContext context) {
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const ModeSelectionScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        barrierDismissible: false,
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -788,6 +759,7 @@ class _StartScreenState extends State<StartScreen>
         creditProvider.resetThreshold();
         gameProvider.activateDoubleBonus();
         gameProvider.startGame();
+        context.go(AppRoutes.game);
       },
     );
   }
@@ -808,10 +780,6 @@ class _StartScreenState extends State<StartScreen>
   }
 
   void _showSettings(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const SettingsDialog(isFromStartScreen: true),
-    );
+    context.push(AppRoutes.settings);
   }
 }

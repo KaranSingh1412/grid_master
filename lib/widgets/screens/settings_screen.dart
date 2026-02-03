@@ -1,110 +1,143 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../constants/game_constants.dart';
+import '../../models/game_models.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/audio_provider.dart';
+import '../../providers/theme_provider.dart';
+import '../../router/app_router.dart';
 
-/// Settings dialog matching the React implementation
-class SettingsDialog extends StatelessWidget {
+/// Settings screen as a full page
+class SettingsScreen extends StatelessWidget {
   final bool isFromStartScreen;
 
-  const SettingsDialog({super.key, this.isFromStartScreen = false});
+  const SettingsScreen({super.key, this.isFromStartScreen = false});
 
   @override
   Widget build(BuildContext context) {
     final settingsProvider = context.watch<SettingsProvider>();
     final gameProvider = context.watch<GameProvider>();
+    final themeProvider = context.watch<ThemeProvider>();
     final brightness = settingsProvider.brightness;
 
-    return Material(
-      color: GameColors.slate950.withValues(alpha: 0.95),
-      child: Center(
-        child: Padding(
+    final isDefaultTheme =
+        themeProvider.currentThemeType == CosmeticThemeType.defaultTheme;
+    final backgroundColor = isDefaultTheme
+        ? GameColors.slate900
+        : themeProvider.backgroundColor;
+    final surfaceColor = isDefaultTheme
+        ? GameColors.slate800
+        : themeProvider.surfaceColor;
+    final accentColor = isDefaultTheme
+        ? GameColors.emerald400
+        : themeProvider.accentColor;
+
+    return Scaffold(
+      backgroundColor: backgroundColor,
+      appBar: AppBar(
+        backgroundColor: backgroundColor,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
+          onPressed: () {
+            context.read<AudioProvider>().playUiTapSound();
+            context.pop();
+          },
+        ),
+        title: Text(
+          'settings'.tr(),
+          style: GoogleFonts.fredoka(
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
-          child: Container(
-            width: double.infinity,
-            constraints: const BoxConstraints(maxWidth: 400),
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: GameColors.slate900,
-              borderRadius: BorderRadius.circular(40),
-              border: Border.all(color: GameColors.slate700),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.5),
-                  blurRadius: 30,
-                  spreadRadius: 5,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Brightness slider
+              _buildSettingsCard(
+                context,
+                surfaceColor: surfaceColor,
+                child: _buildBrightnessSlider(
+                  settingsProvider,
+                  brightness,
+                  accentColor,
+                  surfaceColor,
                 ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'settings'.tr(),
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: -1,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        context.read<AudioProvider>().playUiTapSound();
-                        Navigator.of(context).pop();
-                      },
-                      child: const Icon(
-                        Icons.close,
-                        color: GameColors.slate400,
-                        size: 32,
-                      ),
-                    ),
-                  ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // Music volume slider
+              _buildSettingsCard(
+                context,
+                surfaceColor: surfaceColor,
+                child: _buildMusicVolumeSlider(
+                  context,
+                  settingsProvider,
+                  accentColor,
+                  surfaceColor,
                 ),
+              ),
 
-                const SizedBox(height: 32),
+              const SizedBox(height: 16),
 
-                // Brightness slider
-                _buildBrightnessSlider(settingsProvider, brightness),
+              // Sound volume slider
+              _buildSettingsCard(
+                context,
+                surfaceColor: surfaceColor,
+                child: _buildSoundVolumeSlider(
+                  context,
+                  settingsProvider,
+                  accentColor,
+                  surfaceColor,
+                ),
+              ),
 
-                const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
-                // Music volume slider
-                _buildMusicVolumeSlider(context, settingsProvider),
-
-                const SizedBox(height: 24),
-
-                // Sound volume slider
-                _buildSoundVolumeSlider(context, settingsProvider),
-
-                const SizedBox(height: 32),
-
-                // Done button
-                _buildDoneButton(context),
-
-                // End game button (only when not from start screen)
-                if (!isFromStartScreen) ...[
-                  const SizedBox(height: 12),
-                  _buildEndGameButton(context, gameProvider),
-                ],
+              // End game button (only when not from start screen)
+              if (!isFromStartScreen) ...[
+                _buildEndGameButton(context, gameProvider, surfaceColor),
               ],
-            ),
+            ],
           ),
         ),
       ),
     );
   }
 
+  Widget _buildSettingsCard(
+    BuildContext context, {
+    required Color surfaceColor,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: surfaceColor.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: surfaceColor),
+      ),
+      child: child,
+    );
+  }
+
   Widget _buildBrightnessSlider(
     SettingsProvider settingsProvider,
     int brightness,
+    Color accentColor,
+    Color surfaceColor,
   ) {
     return Column(
       children: [
@@ -122,10 +155,10 @@ class SettingsDialog extends StatelessWidget {
             ),
             Text(
               '$brightness%',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w900,
-                color: GameColors.emerald400,
+                color: accentColor,
               ),
             ),
           ],
@@ -133,10 +166,10 @@ class SettingsDialog extends StatelessWidget {
         const SizedBox(height: 12),
         SliderTheme(
           data: SliderThemeData(
-            activeTrackColor: GameColors.emerald500,
-            inactiveTrackColor: GameColors.slate800,
-            thumbColor: GameColors.emerald400,
-            overlayColor: GameColors.emerald500.withValues(alpha: 0.2),
+            activeTrackColor: accentColor,
+            inactiveTrackColor: surfaceColor,
+            thumbColor: accentColor,
+            overlayColor: accentColor.withValues(alpha: 0.2),
             trackHeight: 12,
             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
           ),
@@ -154,6 +187,8 @@ class SettingsDialog extends StatelessWidget {
   Widget _buildMusicVolumeSlider(
     BuildContext context,
     SettingsProvider settingsProvider,
+    Color accentColor,
+    Color surfaceColor,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,10 +207,10 @@ class SettingsDialog extends StatelessWidget {
             ),
             Text(
               '${(settingsProvider.musicVolume * 100).toStringAsFixed(0)}%',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: GameColors.emerald400,
+                color: accentColor,
                 letterSpacing: 1,
               ),
             ),
@@ -197,8 +232,8 @@ class SettingsDialog extends StatelessWidget {
             min: 0.0,
             max: 1.0,
             divisions: 10,
-            activeColor: GameColors.emerald400,
-            inactiveColor: GameColors.slate700,
+            activeColor: accentColor,
+            inactiveColor: surfaceColor,
           ),
         ),
       ],
@@ -208,6 +243,8 @@ class SettingsDialog extends StatelessWidget {
   Widget _buildSoundVolumeSlider(
     BuildContext context,
     SettingsProvider settingsProvider,
+    Color accentColor,
+    Color surfaceColor,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,10 +263,10 @@ class SettingsDialog extends StatelessWidget {
             ),
             Text(
               '${(settingsProvider.soundVolume * 100).toStringAsFixed(0)}%',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: GameColors.emerald400,
+                color: accentColor,
                 letterSpacing: 1,
               ),
             ),
@@ -251,67 +288,41 @@ class SettingsDialog extends StatelessWidget {
             min: 0.0,
             max: 1.0,
             divisions: 10,
-            activeColor: GameColors.emerald400,
-            inactiveColor: GameColors.slate700,
+            activeColor: accentColor,
+            inactiveColor: surfaceColor,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildDoneButton(BuildContext context) {
+  Widget _buildEndGameButton(
+    BuildContext context,
+    GameProvider gameProvider,
+    Color surfaceColor,
+  ) {
     return GestureDetector(
-      onTap: () => Navigator.of(context).pop(),
+      onTap: () {
+        context.read<AudioProvider>().playUiTapSound();
+        context.read<AudioProvider>().playBackgroundMusic();
+        gameProvider.goToHome();
+        context.go(AppRoutes.home);
+      },
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: GameColors.rose500.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.white.withValues(alpha: 0.1),
-              blurRadius: 12,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            'done'.tr(),
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              color: GameColors.slate900,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEndGameButton(BuildContext context, GameProvider gameProvider) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.of(context).pop();
-        context.read<AudioProvider>().playBackgroundMusic();
-        gameProvider.goToHome();
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: GameColors.slate800,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: GameColors.slate700),
+          border: Border.all(color: GameColors.rose500.withValues(alpha: 0.5)),
         ),
         child: Center(
           child: Text(
             'end_game'.tr(),
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: GameColors.slate400,
+              color: GameColors.rose400,
             ),
           ),
         ),

@@ -24,5 +24,5 @@ export 'widgets/game/color_palette.dart';
 export 'widgets/overlays/feedback_overlay.dart';
 export 'widgets/overlays/pause_overlay.dart';
 
-// Widgets - Dialogs
-export 'widgets/dialogs/settings_dialog.dart';
+// Router
+export 'router/app_router.dart';

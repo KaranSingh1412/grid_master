@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../constants/game_constants.dart';
 import '../../providers/game_provider.dart';
-import '../dialogs/settings_dialog.dart';
+import '../../router/app_router.dart';
 
 /// Pause overlay dialog
 class PauseOverlay extends StatefulWidget {
@@ -185,10 +186,10 @@ class _PauseOverlayState extends State<PauseOverlay>
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _buildSecondaryButton(
-                      'quit'.tr(),
-                      () => gameProvider.goToHome(),
-                    ),
+                    child: _buildSecondaryButton('quit'.tr(), () {
+                      gameProvider.goToHome();
+                      context.go(AppRoutes.home);
+                    }),
                   ),
                 ],
               ),
@@ -290,10 +291,6 @@ class _PauseOverlayState extends State<PauseOverlay>
   }
 
   void _showSettings(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const SettingsDialog(isFromStartScreen: false),
-    );
+    context.push(AppRoutes.settingsInGame);
   }
 }
