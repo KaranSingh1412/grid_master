@@ -355,14 +355,14 @@ const List<CosmeticItem> allCosmetics = [
     cosmeticCost: 80,
   ),
   CosmeticItem(
-    id: 'fart_sound',
-    nameKey: 'cosmetic_fart_sound',
+    id: 'retro_sound',
+    nameKey: 'cosmetic_retro_sound',
     category: CosmeticCategory.soundPack,
     cosmeticCost: 100,
   ),
   CosmeticItem(
-    id: 'retro_sound',
-    nameKey: 'cosmetic_retro_sound',
+    id: 'fart_sound',
+    nameKey: 'cosmetic_fart_sound',
     category: CosmeticCategory.soundPack,
     cosmeticCost: 120,
   ),
