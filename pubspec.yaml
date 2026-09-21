@@ -38,4 +38,6 @@ flutter:
     - assets/audio/
     - assets/audio/standard/
     - assets/audio/fart/
+    - assets/audio/zen/
+    - assets/audio/retro/
     - assets/img/

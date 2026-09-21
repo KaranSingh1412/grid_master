@@ -308,7 +308,7 @@ class _GridCellState extends State<_GridCell> with TickerProviderStateMixin {
       onTapDown: widget.isInteractive
           ? (_) {
               _animController.forward();
-              HapticFeedback.heavyImpact();
+              HapticFeedback.selectionClick();
             }
           : null,
       onTapUp: widget.isInteractive

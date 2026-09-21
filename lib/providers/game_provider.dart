@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/game_models.dart';
 import '../constants/game_constants.dart';
@@ -22,7 +21,9 @@ class GameProvider extends ChangeNotifier {
   bool _hasUsedContinueThisRound = false;
   bool _hasDoubleBonus = false;
   Timer? _gameTimer;
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  // Ticks every 100 ms; kept apart from notifyListeners so only timer
+  // widgets rebuild while the clock runs.
+  final ValueNotifier<double> _timerNotifier = ValueNotifier<double>(0);
   final Random _random = Random();
   AudioProvider? _audioProvider;
 
@@ -36,6 +37,9 @@ class GameProvider extends ChangeNotifier {
   List<GridCell> get userPattern => _userPattern;
   ColorType get selectedColor => _selectedColor;
   double get timer => _timer;
+
+  /// Remaining time, updated on every tick without notifying the provider
+  ValueListenable<double> get timerListenable => _timerNotifier;
   double get maxTimer => _maxTimer;
   int get hints => _hints;
   double get timerProgress => _maxTimer > 0 ? _timer / _maxTimer : 0;
@@ -107,7 +111,7 @@ class GameProvider extends ChangeNotifier {
   /// Start a new level
   void startLevel() {
     _generatePattern();
-    _timer = currentLevel.previewSeconds;
+    _setTimer(currentLevel.previewSeconds);
     _maxTimer = currentLevel.previewSeconds;
     _gameState = GameState.preview;
     _selectedColor = colorOptions[0];
@@ -135,17 +139,20 @@ class GameProvider extends ChangeNotifier {
     _hasDoubleBonus = false;
   }
 
+  void _setTimer(double value) {
+    _timer = value;
+    _timerNotifier.value = value;
+  }
+
   void _startTimer() {
     _gameTimer?.cancel();
     _gameTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      _timer = (_timer - 0.1).clamp(0, double.infinity);
+      _setTimer((_timer - 0.1).clamp(0, double.infinity));
 
       if (_timer <= 0) {
         timer.cancel();
         _onTimerEnd();
       }
-
-      notifyListeners();
     });
   }
 
@@ -153,7 +160,7 @@ class GameProvider extends ChangeNotifier {
     if (_gameState == GameState.preview) {
       // Switch to rebuild mode
       _gameState = GameState.rebuild;
-      _timer = rebuildTimeLimit.toDouble();
+      _setTimer(rebuildTimeLimit.toDouble());
       _maxTimer = rebuildTimeLimit.toDouble();
       _startTimer();
     } else if (_gameState == GameState.rebuild) {
@@ -166,7 +173,7 @@ class GameProvider extends ChangeNotifier {
   void _showSolutionBeforeGameOver() {
     _gameState = GameState.showSolution;
     _deactivateDoubleBonus();
-    _playFailSound();
+    _audioProvider?.playLoseSound();
     notifyListeners();
 
     // Show solution for 2 seconds, then show game over
@@ -266,7 +273,7 @@ class GameProvider extends ChangeNotifier {
   void skipPreview() {
     if (_gameState == GameState.preview) {
       _gameTimer?.cancel();
-      _timer = 0;
+      _setTimer(0);
       _onTimerEnd();
     }
   }
@@ -430,7 +437,7 @@ class GameProvider extends ChangeNotifier {
       );
 
       // Show pattern again in preview mode first
-      _timer = currentLevel.previewSeconds;
+      _setTimer(currentLevel.previewSeconds);
       _maxTimer = currentLevel.previewSeconds;
       _gameState = GameState.preview;
       _startTimer();
@@ -447,25 +454,10 @@ class GameProvider extends ChangeNotifier {
     );
   }
 
-  Future<void> _playFailSound() async {
-    // Don't play sound if audio provider is not set or sound volume is 0
-    if (_audioProvider == null) return;
-
-    try {
-      // Only play if sound is enabled (volume > 0)
-      if (!_audioProvider!.isSoundEnabled) return;
-
-      await _audioPlayer.setVolume(0.15);
-      await _audioPlayer.play(AssetSource('audio/glass.mp3'));
-    } catch (e) {
-      // Ignore audio errors
-    }
-  }
-
   @override
   void dispose() {
     _gameTimer?.cancel();
-    _audioPlayer.dispose();
+    _timerNotifier.dispose();
     super.dispose();
   }
 }

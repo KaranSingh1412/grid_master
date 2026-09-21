@@ -180,20 +180,19 @@ class AudioProvider extends ChangeNotifier {
     }
   }
 
-  /// Play glass break sound effect (game over)
-  Future<void> playGlassSound() async {
-    // Don't play if sound volume is 0
-    if (_soundVolume <= 0.0) return;
+  /// Play lose sound effect of the equipped sound pack (wrong / time up)
+  Future<void> playLoseSound() async {
+    if (!isSoundEnabled) return;
 
     try {
-      final soundPath = _getSoundPath('glass');
+      final soundPath = _getSoundPath('lose');
       await _sfxPlayer.play(AssetSource(soundPath));
     } catch (e) {
       // Fallback to default sound
       try {
         await _sfxPlayer.play(AssetSource('audio/standard/lose.mp3'));
       } catch (e2) {
-        debugPrint('Failed to play glass sound: $e2');
+        debugPrint('Failed to play lose sound: $e2');
       }
     }
   }

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../../constants/game_constants.dart';
+import '../../models/game_models.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/audio_provider.dart';
 import '../../providers/ads_provider.dart';
@@ -26,7 +28,8 @@ class _GameScreenState extends State<GameScreen>
   late Animation<double> _timerAnimation;
   double _lastProgress = 1.0;
   bool _isInitialized = false;
-  bool _hasPlayedGlassSound = false;
+  late final GameProvider _gameProvider;
+  late GameState _lastGameState;
   Widget? _cachedAdWidget;
   BannerAd? _cachedBannerAd;
 
@@ -41,6 +44,11 @@ class _GameScreenState extends State<GameScreen>
       CurvedAnimation(parent: _timerAnimController, curve: Curves.linear),
     );
 
+    _gameProvider = context.read<GameProvider>();
+    _lastGameState = _gameProvider.gameState;
+    _gameProvider.addListener(_onGameChanged);
+    _gameProvider.timerListenable.addListener(_onTimerTick);
+
     // Play background music when entering game screen
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AudioProvider>().playBackgroundMusic();
@@ -49,8 +57,28 @@ class _GameScreenState extends State<GameScreen>
 
   @override
   void dispose() {
+    _gameProvider.removeListener(_onGameChanged);
+    _gameProvider.timerListenable.removeListener(_onTimerTick);
     _timerAnimController.dispose();
     super.dispose();
+  }
+
+  void _onTimerTick() {
+    _updateTimerAnimation(_gameProvider.timerProgress);
+  }
+
+  /// Haptics on state transitions: success is a medium bump, failure a heavy one
+  void _onGameChanged() {
+    final state = _gameProvider.gameState;
+    if (state != _lastGameState) {
+      if (state == GameState.levelUp) {
+        HapticFeedback.mediumImpact();
+      } else if (state == GameState.showSolution) {
+        HapticFeedback.heavyImpact();
+      }
+      _lastGameState = state;
+    }
+    _updateTimerAnimation(_gameProvider.timerProgress);
   }
 
   void _updateTimerAnimation(double newProgress) {
@@ -73,27 +101,6 @@ class _GameScreenState extends State<GameScreen>
   @override
   Widget build(BuildContext context) {
     final gameProvider = context.watch<GameProvider>();
-
-    // Play glass sound when showing solution (only once per game over)
-    if (gameProvider.isShowSolution && !_hasPlayedGlassSound) {
-      _hasPlayedGlassSound = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.read<AudioProvider>().playGlassSound();
-      });
-    }
-
-    // Reset flag when not in showSolution state
-    if (!gameProvider.isShowSolution && !gameProvider.isGameOver) {
-      _hasPlayedGlassSound = false;
-    }
-
-    // Update animation when progress changes
-    final currentProgress = gameProvider.timerProgress;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _updateTimerAnimation(currentProgress);
-      }
-    });
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -152,10 +159,8 @@ class _GameScreenState extends State<GameScreen>
                       ),
                     ),
 
-                    SizedBox(height: spacing),
-
-                    // Ad Banner at the bottom
-                    _buildAdBanner(context),
+                    // Ad Banner at the bottom, clearly separated from controls
+                    _buildAdBanner(context, isSmallScreen),
                   ],
                 ),
 
@@ -170,13 +175,13 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
-  Widget _buildAdBanner(BuildContext context) {
+  Widget _buildAdBanner(BuildContext context, bool isSmallScreen) {
     final adsProvider = context.watch<AdsProvider>();
 
     if (!adsProvider.isGameBannerAdLoaded || adsProvider.gameBannerAd == null) {
       _cachedAdWidget = null;
       _cachedBannerAd = null;
-      return const SizedBox.shrink();
+      return SizedBox(height: isSmallScreen ? 6.0 : 12.0);
     }
 
     // Cache AdWidget to prevent "already in Widget tree" error
@@ -185,12 +190,20 @@ class _GameScreenState extends State<GameScreen>
       _cachedAdWidget = AdWidget(ad: adsProvider.gameBannerAd!);
     }
 
-    return Container(
-      width: double.infinity,
-      height: 60,
-      color: GameColors.slate950,
-      alignment: Alignment.center,
-      child: _cachedAdWidget!,
+    // Dead zone plus divider keep palette taps away from the banner
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(height: isSmallScreen ? 20.0 : 28.0),
+        Container(height: 1, color: GameColors.slate700),
+        Container(
+          width: double.infinity,
+          height: 60,
+          color: GameColors.slate950,
+          alignment: Alignment.center,
+          child: _cachedAdWidget!,
+        ),
+      ],
     );
   }
 
@@ -257,15 +270,7 @@ class _GameScreenState extends State<GameScreen>
     final isPaused = gameProvider.isPaused;
     final isLevelUp = gameProvider.isLevelUp;
     final isShowSolution = gameProvider.isShowSolution;
-    final timer = gameProvider.timer;
     final patternSize = gameProvider.currentLevel.patternSize;
-
-    // Timer color and animation
-    final timerColor = isPreview
-        ? GameColors.amber400
-        : (isRebuild && timer < 2)
-        ? GameColors.rose500
-        : GameColors.emerald400;
 
     // Determine label text
     String labelText;
@@ -330,15 +335,25 @@ class _GameScreenState extends State<GameScreen>
           SizedBox(
             width: isSmallScreen ? 60.0 : 80.0,
             child: Center(
-              child: AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
-                style: TextStyle(
-                  fontSize: isSmallScreen ? 24.0 : 30.0,
-                  fontWeight: FontWeight.w900,
-                  color: timerColor,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-                child: Text(isLevelUp ? ' ' : '${timer.ceil()}s'),
+              child: ValueListenableBuilder<double>(
+                valueListenable: gameProvider.timerListenable,
+                builder: (context, timer, _) {
+                  final timerColor = isPreview
+                      ? GameColors.amber400
+                      : (isRebuild && timer < 2)
+                      ? GameColors.rose500
+                      : GameColors.emerald400;
+                  return AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 200),
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 24.0 : 30.0,
+                      fontWeight: FontWeight.w900,
+                      color: timerColor,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                    child: Text(isLevelUp ? ' ' : '${timer.ceil()}s'),
+                  );
+                },
               ),
             ),
           ),
