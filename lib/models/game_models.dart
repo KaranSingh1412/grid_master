@@ -6,6 +6,9 @@ enum GameState {
   feedback,
   levelUp,
   showSolution,
+
+  /// The board falls apart between the solution and the game over card
+  collapse,
   gameOver,
   paused,
 }

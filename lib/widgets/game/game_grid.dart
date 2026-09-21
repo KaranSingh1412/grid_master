@@ -7,6 +7,7 @@ import '../../providers/game_provider.dart';
 import '../../providers/audio_provider.dart';
 import '../../providers/credit_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../effects/grid_collapse.dart';
 import '../effects/particle_field.dart';
 import '../tactile/tactile.dart';
 import 'grid_style.dart';
@@ -30,6 +31,10 @@ class _GridMotion {
       cosmetic = AnimationController(
         vsync: vsync,
         duration: const Duration(milliseconds: 1600),
+      ),
+      collapse = AnimationController(
+        vsync: vsync,
+        duration: GameProvider.collapseDuration,
       );
 
   final AnimationController entrance;
@@ -37,6 +42,7 @@ class _GridMotion {
   final AnimationController wiggle;
   final AnimationController pulse;
   final AnimationController cosmetic;
+  final AnimationController collapse;
 
   /// Delay in ms per cell index, -1 when the cell takes no part
   List<double> entranceDelays = const [];
@@ -70,6 +76,7 @@ class _GridMotion {
     wiggle.dispose();
     pulse.dispose();
     cosmetic.dispose();
+    collapse.dispose();
   }
 }
 
@@ -98,10 +105,21 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
   bool _reduceMotion = false;
   bool _didInitialEntrance = false;
 
+  // Lose animation: what is left of the board after a lost round
+  GridCollapseScene? _collapse;
+  GridCollapseKind? _lastCollapseKind;
+  Map<int, double> _collapseImpacts = const {};
+  bool _collapseHapticFired = false;
+  late final Listenable _trayMotion = Listenable.merge([
+    _motion.pulse,
+    _motion.collapse,
+  ]);
+
   // Geometry of the last layout, used to place particles
   double _cellSize = 0;
   double _cellStep = 0;
   double _trayPadding = 0;
+  double _boardSize = 0;
 
   @override
   void initState() {
@@ -112,6 +130,7 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
     _game.addListener(_onGameChanged);
     _motion.wave.addListener(_onWaveTick);
     _motion.cosmetic.addListener(_onCosmeticTick);
+    _motion.collapse.addListener(_onCollapseTick);
   }
 
   @override
@@ -131,6 +150,7 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
   void dispose() {
     _game.removeListener(_onGameChanged);
     _motion.dispose();
+    _collapse?.dispose();
     _particles.dispose();
     super.dispose();
   }
@@ -141,6 +161,12 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
     final newPattern = !identical(pattern, _lastPattern);
 
     if (state != _lastState || newPattern) {
+      if (state == GameState.collapse) {
+        _startCollapse();
+      } else if (state != GameState.gameOver) {
+        _endCollapse();
+      }
+
       if (state == GameState.preview &&
           (_lastState != GameState.paused || newPattern)) {
         _startEntrance();
@@ -206,6 +232,121 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
       _waveFired[i] = true;
       final color = pattern[i].color;
       if (color != ColorType.none) _emit(i, color, celebration: true);
+    }
+  }
+
+  /// The lost board falls apart, a different way than last time
+  void _startCollapse() {
+    final pattern = _game.targetPattern;
+    if (_reduceMotion || _cellSize == 0 || pattern.isEmpty) return;
+
+    final kinds = [
+      for (final kind in GridCollapseKind.values)
+        if (kind != _lastCollapseKind) kind,
+    ];
+    final kind = kinds[_random.nextInt(kinds.length)];
+    _lastCollapseKind = kind;
+
+    final palette = context.read<ThemeProvider>().palette;
+    final style = GridStyleSpec.of(
+      context.read<CreditProvider>().cosmeticState.equippedGridStyleId,
+      palette,
+    );
+    final size = _game.currentLevel.gridSize;
+
+    _collapse?.dispose();
+    _collapse = GridCollapseScene.build(
+      kind: kind,
+      boardSize: _boardSize,
+      radius: style.cellRadius,
+      socketTone: palette.well,
+      ringColor: style.cellRing,
+      ringWidth: style.cellRingWidth,
+      random: _random,
+      cells: [
+        for (int i = 0; i < pattern.length; i++)
+          GridCollapseCell(
+            index: i,
+            rect: Rect.fromLTWH(
+              _trayPadding + (i % size) * _cellStep,
+              _trayPadding + (i ~/ size) * _cellStep,
+              _cellSize,
+              _cellSize,
+            ),
+            tone: palette.toneOf(pattern[i].color),
+            filled: pattern[i].color != ColorType.none,
+          ),
+      ],
+    );
+    _collapseImpacts = _collapse!.impacts;
+    _collapseHapticFired = false;
+    _motion.collapse.forward(from: 0);
+  }
+
+  void _endCollapse() {
+    if (_collapse == null) return;
+    _motion.collapse.stop();
+    _motion.collapse.value = 0;
+    _collapse!.dispose();
+    _collapse = null;
+    _collapseImpacts = const {};
+  }
+
+  /// Debris and haptics at the moment each tile breaks
+  void _onCollapseTick() {
+    final scene = _collapse;
+    if (scene == null || !_motion.collapse.isAnimating) return;
+    final t = _motion.collapse.value;
+
+    if (!_collapseHapticFired) {
+      final first = _collapseImpacts.isEmpty
+          ? 0.12
+          : _collapseImpacts.values.reduce(min);
+      if (t >= first) {
+        _collapseHapticFired = true;
+        switch (scene.kind) {
+          case GridCollapseKind.explode:
+            HapticFeedback.heavyImpact();
+            _particles.burst(
+              Offset(_boardSize / 2, _boardSize / 2),
+              Colors.white,
+              count: 26,
+              distance: _boardSize * 0.85,
+              size: _cellSize * 0.16,
+            );
+            break;
+          case GridCollapseKind.shatter:
+            HapticFeedback.mediumImpact();
+            break;
+          case GridCollapseKind.fallThrough:
+            HapticFeedback.lightImpact();
+            break;
+        }
+      }
+    }
+
+    if (_collapseImpacts.isEmpty) return;
+    final palette = context.read<ThemeProvider>().palette;
+    final pattern = _game.targetPattern;
+    final due = [
+      for (final entry in _collapseImpacts.entries)
+        if (t >= entry.value) entry.key,
+    ];
+    if (due.isEmpty) return;
+    _collapseImpacts = {
+      for (final entry in _collapseImpacts.entries)
+        if (!due.contains(entry.key)) entry.key: entry.value,
+    };
+    for (final i in due) {
+      if (i >= pattern.length) continue;
+      final exploding = scene.kind == GridCollapseKind.explode;
+      _particles.burst(
+        _centerOf(i),
+        exploding ? palette.toneOf(pattern[i].color).face : Colors.white,
+        count: exploding ? 7 : 5,
+        distance: _cellSize * (exploding ? 1.6 : 0.7),
+        size: _cellSize * (exploding ? 0.15 : 0.09),
+      );
     }
   }
 
@@ -340,7 +481,11 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
     final isShowSolution = gameProvider.isShowSolution;
     final cells = gameProvider.isPaused
         ? gameProvider.pausedCells
-        : (gameProvider.isPreview || gameProvider.isLevelUp || isShowSolution
+        : (gameProvider.isPreview ||
+                  gameProvider.isLevelUp ||
+                  isShowSolution ||
+                  gameProvider.isCollapse ||
+                  gameProvider.isGameOver
               ? gameProvider.targetPattern
               : gameProvider.userPattern);
     final isInteractive = gameProvider.isRebuild;
@@ -370,6 +515,7 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
         _cellSize =
             (gridSize - 2 * trayPadding - (size - 1) * cellSpacing) / size;
         _cellStep = _cellSize + cellSpacing;
+        _boardSize = gridSize;
 
         return Align(
           alignment: Alignment.topCenter,
@@ -382,14 +528,21 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
                 Positioned.fill(
                   child: RepaintBoundary(
                     child: AnimatedBuilder(
-                      animation: _motion.pulse,
+                      animation: _trayMotion,
                       builder: (context, child) {
                         final t = _motion.pulse.value;
                         // One short dip to 0.97 when the pattern disappears
                         final dip = t >= 1 ? 0.0 : sin(t * pi);
-                        return Transform.scale(
-                          scale: 1 - 0.03 * dip,
-                          child: child,
+                        // An explosion rattles the tray as well
+                        final jolt = _collapse?.trayJolt(
+                          _motion.collapse.value,
+                        );
+                        return Transform.translate(
+                          offset: jolt?.offset ?? Offset.zero,
+                          child: Transform.scale(
+                            scale: (1 - 0.03 * dip) * (jolt?.scale ?? 1),
+                            child: child,
+                          ),
                         );
                       },
                       child: TactileWell(
@@ -411,6 +564,13 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
                               ),
                           itemCount: cells.length,
                           itemBuilder: (context, index) {
+                            // Taken over by the lose animation
+                            if (_collapse?.hides(index) ?? false) {
+                              return SizedBox.shrink(
+                                key: ValueKey('cell_$index'),
+                              );
+                            }
+
                             // Check if this cell was wrong (only during solution display)
                             final isErrorCell =
                                 isShowSolution &&
@@ -442,6 +602,13 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
+                if (_collapse != null)
+                  Positioned.fill(
+                    child: GridCollapseLayer(
+                      scene: _collapse!,
+                      animation: _motion.collapse,
+                    ),
+                  ),
                 Positioned.fill(child: ParticleField(controller: _particles)),
               ],
             ),
