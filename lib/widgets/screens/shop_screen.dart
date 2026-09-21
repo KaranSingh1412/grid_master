@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:grid_master/providers/audio_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../constants/game_constants.dart';
 import '../../models/game_models.dart';
 import '../../providers/credit_provider.dart';
@@ -11,6 +10,8 @@ import '../../providers/ads_provider.dart';
 import '../../providers/purchases_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../theme/app_theme.dart';
+import '../tactile/tactile.dart';
 
 /// Credit package definition
 class CreditPackage {
@@ -85,42 +86,41 @@ class _ShopScreenState extends State<ShopScreen>
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = context.watch<ThemeProvider>();
-    final isDefaultTheme =
-        themeProvider.currentThemeType == CosmeticThemeType.defaultTheme;
-    final backgroundColor = isDefaultTheme
-        ? GameColors.slate900
-        : themeProvider.backgroundColor;
-    final surfaceColor = isDefaultTheme
-        ? GameColors.slate800
-        : themeProvider.surfaceColor;
+    final palette = context.select<ThemeProvider, TactilePalette>(
+      (t) => t.palette,
+    );
+    final text = TactileText(palette);
 
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: palette.background,
       appBar: AppBar(
-        backgroundColor: backgroundColor,
+        backgroundColor: palette.background,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
+          icon: Icon(Icons.arrow_back_ios_rounded, color: palette.textPrimary),
           onPressed: () => context.pop(),
         ),
-        title: Text(
-          'shop_title'.tr(),
-          style: GoogleFonts.fredoka(
-            fontSize: 24,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
+        title: Text('shop_title'.tr(), style: text.heading),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(child: _CoinBalance(palette: palette)),
           ),
-        ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
-          indicatorColor: themeProvider.accentColor,
-          labelColor: themeProvider.accentColor,
-          unselectedLabelColor: themeProvider.textSecondaryColor,
-          labelStyle: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+          tabAlignment: TabAlignment.start,
+          dividerColor: palette.surface.lip,
+          indicatorColor: palette.accent,
+          indicatorWeight: 4,
+          labelColor: palette.textPrimary,
+          unselectedLabelColor: palette.textSecondary,
+          labelStyle: text.button.copyWith(fontSize: 15),
+          unselectedLabelStyle: text.button.copyWith(
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
           ),
           tabs: [
             Tab(text: 'shop_coins_tab'.tr()),
@@ -131,53 +131,44 @@ class _ShopScreenState extends State<ShopScreen>
           ],
         ),
       ),
-      body: Column(
+      body: TabBarView(
+        controller: _tabController,
         children: [
-          // Credits display header
-          Consumer<CreditProvider>(
-            builder: (context, credits, _) {
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: surfaceColor.withValues(alpha: 0.5),
-                  border: Border(bottom: BorderSide(color: surfaceColor)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Image.asset('assets/img/coin.png', width: 24, height: 24),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${credits.credits}',
-                      style: GoogleFonts.fredoka(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        color: themeProvider.accentColor,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+          _ShopCoinsTab(),
+          _ShopCosmeticCategoryList(category: CosmeticCategory.theme),
+          _ShopCosmeticCategoryList(category: CosmeticCategory.gridStyle),
+          _ShopCosmeticCategoryList(category: CosmeticCategory.cellAnimation),
+          _ShopCosmeticCategoryList(category: CosmeticCategory.soundPack),
+        ],
+      ),
+    );
+  }
+}
 
-          // Tab content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _ShopCoinsTab(),
-                _ShopCosmeticCategoryList(category: CosmeticCategory.theme),
-                _ShopCosmeticCategoryList(category: CosmeticCategory.gridStyle),
-                _ShopCosmeticCategoryList(
-                  category: CosmeticCategory.cellAnimation,
-                ),
-                _ShopCosmeticCategoryList(category: CosmeticCategory.soundPack),
-              ],
-            ),
+/// Coin balance in the app bar
+class _CoinBalance extends StatelessWidget {
+  final TactilePalette palette;
+
+  const _CoinBalance({required this.palette});
+
+  @override
+  Widget build(BuildContext context) {
+    final credits = context.select<CreditProvider, int>((c) => c.credits);
+    return TactileSurface(
+      tone: palette.surface,
+      radius: TactileRadii.pill,
+      depth: TactileDepth.small,
+      padding: const EdgeInsets.fromLTRB(8, 4, 14, 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Image.asset('assets/img/coin.png', width: 22, height: 22),
+          const SizedBox(width: 6),
+          Text(
+            '$credits',
+            style: TactileText(
+              palette,
+            ).number(18, color: palette.cta.face, weight: FontWeight.w600),
           ),
         ],
       ),
@@ -190,12 +181,11 @@ class _ShopCoinsTab extends StatelessWidget {
   const _ShopCoinsTab();
 
   void _showError(BuildContext context, String message) {
+    final palette = context.read<ThemeProvider>().palette;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: GameColors.rose500,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        content: Text(message, style: TextStyle(color: palette.danger.ink)),
+        backgroundColor: palette.danger.face,
       ),
     );
   }
@@ -207,42 +197,25 @@ class _ShopCoinsTab extends StatelessWidget {
           children: [
             Image.asset('assets/img/coin.png', width: 24, height: 24),
             const SizedBox(width: 8),
-            Text(
-              '+$credits ${'credits_received'.tr()}',
-              style: GoogleFonts.fredoka(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            Text('+$credits ${'credits_received'.tr()}'),
           ],
         ),
-        backgroundColor: GameColors.emerald600,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 2),
       ),
     );
   }
 
   void _showRemoveAdsSuccess(BuildContext context) {
+    final palette = context.read<ThemeProvider>().palette;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.check_circle, color: Colors.white, size: 24),
+            Icon(Icons.check_circle, color: palette.primary.face, size: 24),
             const SizedBox(width: 8),
-            Text(
-              'shop_remove_ads_success'.tr(),
-              style: GoogleFonts.fredoka(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            Text('shop_remove_ads_success'.tr()),
           ],
         ),
-        backgroundColor: GameColors.emerald600,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 3),
       ),
     );
@@ -329,27 +302,13 @@ class _ShopCoinsTab extends StatelessWidget {
     final success = await purchasesProvider.restorePurchases();
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('shop_restore_success'.tr()),
-          backgroundColor: GameColors.emerald600,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('shop_restore_success'.tr())));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('shop_restore_none'.tr()),
-          backgroundColor: GameColors.slate700,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('shop_restore_none'.tr())));
     }
   }
 
@@ -358,37 +317,62 @@ class _ShopCoinsTab extends StatelessWidget {
     final purchasesProvider = context.watch<PurchasesProvider>();
     final adsProvider = context.watch<AdsProvider>();
     final creditProvider = context.watch<CreditProvider>();
+    final palette = context.select<ThemeProvider, TactilePalette>(
+      (t) => t.palette,
+    );
+    final text = TactileText(palette);
     final showFreeCredits = adsProvider.isRewardedAdLoaded;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Remove Ads Card (if not already purchased)
-          if (!purchasesProvider.isAdFree)
-            _buildRemoveAdsCard(context, purchasesProvider),
-
-          if (!purchasesProvider.isAdFree) const SizedBox(height: 16),
-
-          // Free Credits Section
-          if (showFreeCredits) _buildFreeCreditsCard(context, creditProvider),
-
-          if (showFreeCredits) const SizedBox(height: 24),
-
-          // Credit Packages Header
-          Text(
-            'shop_buy_credits'.tr(),
-            style: GoogleFonts.fredoka(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
+          // Remove Ads (if not already purchased)
+          if (!purchasesProvider.isAdFree) ...[
+            _buildOfferRow(
+              palette,
+              icon: Icons.block,
+              iconTone: palette.danger,
+              title: 'shop_remove_ads'.tr(),
+              subtitle: 'shop_remove_ads_desc'.tr(),
+              action: TactileButton(
+                tone: palette.danger,
+                depth: TactileDepth.small,
+                radius: TactileRadii.sm,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 9,
+                ),
+                onTap: purchasesProvider.isPurchasing
+                    ? null
+                    : () => _purchaseRemoveAds(context),
+                child: purchasesProvider.isPurchasing
+                    ? _spinner(palette.danger.ink)
+                    : Text(
+                        'shop_buy'.tr(),
+                        style: text.button.copyWith(fontSize: 15),
+                      ),
+              ),
             ),
-          ),
+            const SizedBox(height: 12),
+          ],
+
+          // Free Credits
+          if (showFreeCredits) ...[
+            _buildFreeCreditsRow(context, palette, creditProvider),
+            const SizedBox(height: 12),
+          ],
 
           const SizedBox(height: 16),
 
-          // Credit Packages Grid
+          Text(
+            'shop_buy_credits'.tr(),
+            style: text.heading.copyWith(fontSize: 20),
+          ),
+
+          const SizedBox(height: 12),
+
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -401,337 +385,193 @@ class _ShopCoinsTab extends StatelessWidget {
             itemCount: creditPackages.length,
             itemBuilder: (context, index) {
               final package = creditPackages[index];
-              return _buildPackageCard(context, package, purchasesProvider);
+              return _buildPackageKey(
+                context,
+                palette,
+                package,
+                purchasesProvider,
+              );
             },
           ),
 
           const SizedBox(height: 24),
 
-          // Restore Purchases
-          _buildRestoreButton(context, purchasesProvider),
+          TactileButton(
+            tone: palette.raised,
+            expand: true,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            onTap: purchasesProvider.isPurchasing
+                ? null
+                : () => _restorePurchases(context),
+            child: purchasesProvider.isPurchasing
+                ? _spinner(palette.raised.ink)
+                : Text(
+                    'shop_restore_purchases'.tr(),
+                    style: text.button.copyWith(fontSize: 16),
+                  ),
+          ),
 
           const SizedBox(height: 16),
 
-          // Info Text
           Text(
             'shop_info'.tr(),
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: GameColors.slate500),
+            style: text.body.copyWith(fontSize: 12, color: palette.textMuted),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRemoveAdsCard(
-    BuildContext context,
-    PurchasesProvider purchasesProvider,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            GameColors.rose500.withValues(alpha: 0.3),
-            GameColors.rose400.withValues(alpha: 0.2),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: GameColors.rose500.withValues(alpha: 0.5)),
-      ),
+  Widget _spinner(Color color) {
+    return SizedBox(
+      width: 20,
+      height: 20,
+      child: CircularProgressIndicator(strokeWidth: 2, color: color),
+    );
+  }
+
+  Widget _buildOfferRow(
+    TactilePalette palette, {
+    required IconData icon,
+    required TactileTone iconTone,
+    required String title,
+    required String subtitle,
+    required Widget action,
+    bool dimmed = false,
+  }) {
+    final text = TactileText(palette);
+    return TactileSurface(
+      tone: palette.surface,
+      radius: TactileRadii.lg,
+      padding: const EdgeInsets.all(14),
       child: Row(
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: GameColors.rose500.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(12),
+          TactileSurface(
+            tone: iconTone,
+            radius: TactileRadii.sm,
+            depth: TactileDepth.small,
+            child: SizedBox(
+              width: 48,
+              height: 44,
+              child: Icon(icon, color: iconTone.ink, size: 26),
             ),
-            child: const Icon(Icons.block, color: GameColors.rose400, size: 28),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'shop_remove_ads'.tr(),
-                  style: const TextStyle(
+                  title,
+                  style: text.button.copyWith(
                     fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    color: dimmed ? palette.textSecondary : palette.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
-                  'shop_remove_ads_desc'.tr(),
-                  style: TextStyle(fontSize: 12, color: GameColors.slate400),
+                  subtitle,
+                  style: text.body.copyWith(
+                    fontSize: 13,
+                    color: dimmed ? palette.textMuted : palette.textSecondary,
+                  ),
                 ),
               ],
             ),
           ),
-          GestureDetector(
-            onTap: purchasesProvider.isPurchasing
-                ? null
-                : () => _purchaseRemoveAds(context),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: GameColors.rose500,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: purchasesProvider.isPurchasing
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Text(
-                      'shop_buy'.tr(),
-                      style: GoogleFonts.fredoka(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-            ),
-          ),
+          const SizedBox(width: 12),
+          action,
         ],
       ),
     );
   }
 
-  Widget _buildFreeCreditsCard(
+  Widget _buildFreeCreditsRow(
     BuildContext context,
+    TactilePalette palette,
     CreditProvider creditProvider,
   ) {
     final canWatch = creditProvider.canWatchAdToday;
+    final text = TactileText(palette);
+    final muted = palette.raised.muted(palette.surface.face);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: canWatch
-              ? [
-                  GameColors.emerald600.withValues(alpha: 0.3),
-                  GameColors.emerald500.withValues(alpha: 0.2),
-                ]
-              : [
-                  GameColors.slate700.withValues(alpha: 0.3),
-                  GameColors.slate600.withValues(alpha: 0.2),
-                ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: canWatch
-              ? GameColors.emerald500.withValues(alpha: 0.5)
-              : GameColors.slate600.withValues(alpha: 0.5),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: canWatch
-                  ? GameColors.emerald500.withValues(alpha: 0.3)
-                  : GameColors.slate600.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              canWatch ? Icons.play_circle_outline : Icons.check_circle,
-              color: canWatch ? GameColors.emerald400 : GameColors.slate500,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'shop_free_credits'.tr(),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: canWatch ? Colors.white : GameColors.slate400,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  canWatch
-                      ? 'shop_watch_ad'.tr()
-                      : 'shop_ad_watched_today'.tr(),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: canWatch ? GameColors.slate400 : GameColors.slate500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          GestureDetector(
-            onTap: canWatch ? () => _watchAdForCredits(context) : null,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: canWatch ? GameColors.emerald500 : GameColors.slate700,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Image.asset('assets/img/coin.png', width: 16, height: 16),
-                  const SizedBox(width: 4),
-                  Text(
-                    '+5',
-                    style: GoogleFonts.fredoka(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: canWatch ? Colors.white : GameColors.slate500,
-                    ),
-                  ),
-                ],
+    return _buildOfferRow(
+      palette,
+      icon: canWatch ? Icons.play_circle_outline : Icons.check_circle,
+      iconTone: canWatch ? palette.primary : muted,
+      title: 'shop_free_credits'.tr(),
+      subtitle: canWatch ? 'shop_watch_ad'.tr() : 'shop_ad_watched_today'.tr(),
+      dimmed: !canWatch,
+      action: TactileButton(
+        tone: palette.primary,
+        disabledTone: muted,
+        depth: TactileDepth.small,
+        radius: TactileRadii.sm,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        onTap: canWatch ? () => _watchAdForCredits(context) : null,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('assets/img/coin.png', width: 16, height: 16),
+            const SizedBox(width: 4),
+            Text(
+              '+5',
+              style: text.number(
+                15,
+                color: canWatch ? palette.primary.ink : palette.textMuted,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildPackageCard(
+  Widget _buildPackageKey(
     BuildContext context,
+    TactilePalette palette,
     CreditPackage package,
     PurchasesProvider purchasesProvider,
   ) {
-    return GestureDetector(
+    final text = TactileText(palette);
+
+    // The whole package is one big key
+    return TactileButton(
+      tone: palette.surface,
+      radius: TactileRadii.lg,
+      padding: const EdgeInsets.all(14),
       onTap: () => _purchasePackage(context, package),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              GameColors.slate800,
-              GameColors.slate800.withValues(alpha: 0.8),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset('assets/img/coin.png', width: 48, height: 48),
+          const SizedBox(height: 6),
+          Text(
+            '${package.credits}',
+            style: text.number(28, color: palette.cta.face),
           ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: GameColors.violet500.withValues(alpha: 0.5),
+          Text('credits'.tr(), style: text.body.copyWith(fontSize: 13)),
+          const Spacer(),
+          TactileSurface(
+            tone: palette.cta,
+            radius: TactileRadii.sm,
+            depth: TactileDepth.small,
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Center(
+              child: purchasesProvider.isPurchasing
+                  ? _spinner(palette.cta.ink)
+                  : Text(
+                      '€${package.price.toStringAsFixed(2)}',
+                      style: text.number(
+                        16,
+                        color: palette.cta.ink,
+                        weight: FontWeight.w600,
+                      ),
+                    ),
+            ),
           ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Coin icon
-              Image.asset('assets/img/coin.png', width: 48, height: 48),
-
-              const SizedBox(height: 8),
-
-              // Credits amount
-              Text(
-                '${package.credits}',
-                style: GoogleFonts.fredoka(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w600,
-                  color: GameColors.amber400,
-                ),
-              ),
-
-              Text(
-                'credits'.tr(),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: GameColors.slate400,
-                ),
-              ),
-
-              const Spacer(),
-
-              // Price button
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: GameColors.slate700,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Center(
-                  child: purchasesProvider.isPurchasing
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(
-                          '€${package.price.toStringAsFixed(2)}',
-                          style: GoogleFonts.fredoka(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRestoreButton(
-    BuildContext context,
-    PurchasesProvider purchasesProvider,
-  ) {
-    return GestureDetector(
-      onTap: purchasesProvider.isPurchasing
-          ? null
-          : () => _restorePurchases(context),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: GameColors.slate800,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: GameColors.slate700),
-        ),
-        child: Center(
-          child: purchasesProvider.isPurchasing
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : Text(
-                  'shop_restore_purchases'.tr(),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: GameColors.slate400,
-                  ),
-                ),
-        ),
+        ],
       ),
     );
   }
@@ -817,181 +657,176 @@ class _ShopCosmeticItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeColors = item.themeType != null
-        ? CosmeticThemeColors.getTheme(item.themeType!)
-        : null;
+    final palette = context.select<ThemeProvider, TactilePalette>(
+      (t) => t.palette,
+    );
+    final text = TactileText(palette);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: GameColors.slate800,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isEquipped ? GameColors.emerald500 : GameColors.slate700,
-          width: isEquipped ? 2 : 1,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TactileSurface(
+        tone: palette.surface,
+        radius: TactileRadii.lg,
+        ringColor: isEquipped ? palette.primary.face : null,
+        ringWidth: isEquipped ? 3 : 0,
+        padding: const EdgeInsets.all(14),
         child: Row(
           children: [
-            // Theme preview (for themes)
-            if (themeColors != null)
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [themeColors.primary, themeColors.secondary],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: themeColors.accent, width: 2),
-                ),
-              )
-            else
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: GameColors.slate700,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  _getCategoryIcon(),
-                  color: isUnlocked
-                      ? GameColors.emerald400
-                      : GameColors.slate500,
-                  size: 24,
-                ),
-              ),
+            _buildPreview(palette),
 
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
 
-            // Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     item.nameKey.tr(),
-                    style: TextStyle(
+                    style: text.button.copyWith(
                       fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: isUnlocked ? Colors.white : GameColors.slate400,
+                      color: isUnlocked
+                          ? palette.textPrimary
+                          : palette.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  if (!isUnlocked && item.cosmeticCost > 0)
-                    Row(
-                      children: [
-                        Image.asset(
-                          'assets/img/coin.png',
-                          width: 14,
-                          height: 14,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${item.cosmeticCost}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: GameColors.amber400,
-                          ),
-                        ),
-                      ],
-                    )
-                  else if (isEquipped)
+                  if (isEquipped) ...[
+                    const SizedBox(height: 2),
                     Text(
                       'cosmetics_equipped'.tr(),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: GameColors.emerald400,
+                      style: text.body.copyWith(
+                        fontSize: 13,
+                        color: palette.primary.face,
                       ),
                     ),
+                  ],
                 ],
               ),
             ),
 
-            // Action button
-            _buildActionButton(),
+            const SizedBox(width: 12),
+
+            _buildActionButton(palette, text),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildActionButton() {
-    if (isEquipped) {
+  /// Themes preview as a mini board in their own colors, the rest as an icon
+  Widget _buildPreview(TactilePalette palette) {
+    if (item.themeType != null) {
+      final preview = TactilePalette.fromTheme(
+        item.themeType!,
+        CosmeticThemeColors.getTheme(item.themeType!),
+      );
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        width: 52,
+        height: 52,
+        padding: const EdgeInsets.all(5),
         decoration: BoxDecoration(
-          color: GameColors.emerald500.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(20),
+          color: preview.background,
+          borderRadius: BorderRadius.circular(TactileRadii.sm),
+          border: Border.all(color: preview.surface.face, width: 2),
         ),
-        child: const Icon(Icons.check, color: GameColors.emerald400, size: 20),
+        child: GridView.count(
+          padding: EdgeInsets.zero,
+          crossAxisCount: 2,
+          crossAxisSpacing: 3,
+          mainAxisSpacing: 3,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            for (final tone in [
+              preview.gameTones[0],
+              preview.gameTones[1],
+              preview.gameTones[2],
+              preview.primary,
+            ])
+              CustomPaint(
+                painter: TactilePainter(
+                  tone: tone,
+                  radius: 5,
+                  depth: const TactileDepth(lip: 3, lipPressed: 1),
+                  sheen: false,
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
+    final tone = isUnlocked
+        ? palette.raised
+        : palette.raised.muted(palette.surface.face);
+    return TactileSurface(
+      tone: tone,
+      radius: TactileRadii.sm,
+      depth: TactileDepth.small,
+      child: SizedBox(
+        width: 52,
+        height: 48,
+        child: Icon(
+          _getCategoryIcon(),
+          color: isUnlocked ? palette.accent : palette.textMuted,
+          size: 24,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton(TactilePalette palette, TactileText text) {
+    const pad = EdgeInsets.symmetric(horizontal: 14, vertical: 8);
+
+    if (isEquipped) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Icon(Icons.check_circle, color: palette.primary.face, size: 28),
       );
     }
 
     if (isUnlocked) {
-      return GestureDetector(
+      return TactileButton(
+        tone: palette.raised,
+        depth: TactileDepth.small,
+        radius: TactileRadii.sm,
+        padding: pad,
         onTap: onEquip,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: GameColors.slate700,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            'cosmetics_equip'.tr(),
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
-          ),
+        child: Text(
+          'cosmetics_equip'.tr(),
+          style: text.button.copyWith(fontSize: 14),
         ),
       );
     }
 
     if (item.cosmeticCost > 0) {
       final canAfford = coinCredits >= item.cosmeticCost;
-      return GestureDetector(
+      final muted = palette.raised.muted(palette.surface.face);
+      return TactileButton(
+        tone: palette.cta,
+        disabledTone: muted,
+        depth: TactileDepth.small,
+        radius: TactileRadii.sm,
+        padding: pad,
         onTap: canAfford ? onPurchase : null,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: canAfford ? GameColors.amber500 : GameColors.slate700,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset('assets/img/coin.png', width: 14, height: 14),
-              const SizedBox(width: 4),
-              Text(
-                '${item.cosmeticCost}',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: canAfford ? Colors.white : GameColors.slate500,
-                ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('assets/img/coin.png', width: 16, height: 16),
+            const SizedBox(width: 4),
+            Text(
+              '${item.cosmeticCost}',
+              style: text.number(
+                14,
+                color: canAfford ? palette.cta.ink : palette.textMuted,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: GameColors.slate700,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: const Icon(Icons.lock, color: GameColors.slate500, size: 16),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Icon(Icons.lock, color: palette.textMuted, size: 20),
     );
   }
 

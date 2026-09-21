@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../../constants/game_constants.dart';
-import '../../models/game_models.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/audio_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../router/app_router.dart';
+import '../../theme/app_theme.dart';
+import '../tactile/tactile.dart';
 
 /// Settings screen as a full page
 class SettingsScreen extends StatelessWidget {
@@ -20,94 +19,93 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settingsProvider = context.watch<SettingsProvider>();
-    final gameProvider = context.watch<GameProvider>();
-    final themeProvider = context.watch<ThemeProvider>();
-    final brightness = settingsProvider.brightness;
-
-    final isDefaultTheme =
-        themeProvider.currentThemeType == CosmeticThemeType.defaultTheme;
-    final backgroundColor = isDefaultTheme
-        ? GameColors.slate900
-        : themeProvider.backgroundColor;
-    final surfaceColor = isDefaultTheme
-        ? GameColors.slate800
-        : themeProvider.surfaceColor;
-    final accentColor = isDefaultTheme
-        ? GameColors.emerald400
-        : themeProvider.accentColor;
+    final gameProvider = context.read<GameProvider>();
+    final palette = context.select<ThemeProvider, TactilePalette>(
+      (t) => t.palette,
+    );
+    final text = TactileText(palette);
 
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: palette.background,
       appBar: AppBar(
-        backgroundColor: backgroundColor,
+        backgroundColor: palette.background,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded, color: Colors.white),
+          icon: Icon(Icons.arrow_back_ios_rounded, color: palette.textPrimary),
           onPressed: () {
             context.read<AudioProvider>().playUiTapSound();
             context.pop();
           },
         ),
-        title: Text(
-          'settings'.tr(),
-          style: GoogleFonts.fredoka(
-            fontSize: 24,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
+        title: Text('settings'.tr(), style: text.heading),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Brightness slider
-              _buildSettingsCard(
-                context,
-                surfaceColor: surfaceColor,
-                child: _buildBrightnessSlider(
-                  settingsProvider,
-                  brightness,
-                  accentColor,
-                  surfaceColor,
-                ),
+              _buildSlider(
+                palette,
+                label: 'brightness'.tr(),
+                valueLabel: '${settingsProvider.brightness}%',
+                value: settingsProvider.brightness.toDouble(),
+                min: 30,
+                max: 150,
+                onChanged: (value) =>
+                    settingsProvider.setBrightness(value.round()),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // Music volume slider
-              _buildSettingsCard(
-                context,
-                surfaceColor: surfaceColor,
-                child: _buildMusicVolumeSlider(
-                  context,
-                  settingsProvider,
-                  accentColor,
-                  surfaceColor,
-                ),
+              _buildSlider(
+                palette,
+                label: 'music_volume'.tr(),
+                valueLabel:
+                    '${(settingsProvider.musicVolume * 100).toStringAsFixed(0)}%',
+                value: settingsProvider.musicVolume,
+                min: 0.0,
+                max: 1.0,
+                divisions: 10,
+                onChanged: (value) {
+                  settingsProvider.setMusicVolume(value);
+                  context.read<AudioProvider>().setMusicVolume(value);
+                },
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // Sound volume slider
-              _buildSettingsCard(
-                context,
-                surfaceColor: surfaceColor,
-                child: _buildSoundVolumeSlider(
-                  context,
-                  settingsProvider,
-                  accentColor,
-                  surfaceColor,
-                ),
+              _buildSlider(
+                palette,
+                label: 'sound_volume'.tr(),
+                valueLabel:
+                    '${(settingsProvider.soundVolume * 100).toStringAsFixed(0)}%',
+                value: settingsProvider.soundVolume,
+                min: 0.0,
+                max: 1.0,
+                divisions: 10,
+                onChanged: (value) {
+                  settingsProvider.setSoundVolume(value);
+                  context.read<AudioProvider>().setSoundVolume(value);
+                },
               ),
-
-              const SizedBox(height: 32),
 
               // End game button (only when not from start screen)
               if (!isFromStartScreen) ...[
-                _buildEndGameButton(context, gameProvider, surfaceColor),
+                const SizedBox(height: 28),
+                TactileButton(
+                  tone: palette.danger,
+                  expand: true,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  onTap: () {
+                    context.read<AudioProvider>().playUiTapSound();
+                    context.read<AudioProvider>().playBackgroundMusic();
+                    gameProvider.goToHome();
+                    context.go(AppRoutes.home);
+                  },
+                  child: Text('end_game'.tr(), style: text.button),
+                ),
               ],
             ],
           ),
@@ -116,216 +114,62 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSettingsCard(
-    BuildContext context, {
-    required Color surfaceColor,
-    required Widget child,
+  Widget _buildSlider(
+    TactilePalette palette, {
+    required String label,
+    required String valueLabel,
+    required double value,
+    required double min,
+    required double max,
+    int? divisions,
+    required ValueChanged<double> onChanged,
   }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: surfaceColor.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: surfaceColor),
-      ),
-      child: child,
-    );
-  }
+    final text = TactileText(palette);
 
-  Widget _buildBrightnessSlider(
-    SettingsProvider settingsProvider,
-    int brightness,
-    Color accentColor,
-    Color surfaceColor,
-  ) {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'brightness'.tr().toUpperCase(),
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: GameColors.slate300,
-                letterSpacing: 2,
+    return TactileSurface(
+      tone: palette.surface,
+      radius: TactileRadii.lg,
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                label.toUpperCase(),
+                style: text.label.copyWith(
+                  fontSize: 13,
+                  color: palette.textSecondary,
+                ),
               ),
-            ),
-            Text(
-              '$brightness%',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-                color: accentColor,
+              Text(valueLabel, style: text.number(16, color: palette.accent)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          SliderTheme(
+            data: SliderThemeData(
+              activeTrackColor: palette.primary.face,
+              inactiveTrackColor: palette.backgroundDeep,
+              thumbColor: palette.textPrimary,
+              overlayColor: palette.primary.face.withValues(alpha: 0.18),
+              activeTickMarkColor: Colors.transparent,
+              inactiveTickMarkColor: Colors.transparent,
+              trackHeight: 12,
+              thumbShape: const RoundSliderThumbShape(
+                enabledThumbRadius: 13,
+                elevation: 3,
               ),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 22),
             ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SliderTheme(
-          data: SliderThemeData(
-            activeTrackColor: accentColor,
-            inactiveTrackColor: surfaceColor,
-            thumbColor: accentColor,
-            overlayColor: accentColor.withValues(alpha: 0.2),
-            trackHeight: 12,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
-          ),
-          child: Slider(
-            value: brightness.toDouble(),
-            min: 30,
-            max: 150,
-            onChanged: (value) => settingsProvider.setBrightness(value.round()),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMusicVolumeSlider(
-    BuildContext context,
-    SettingsProvider settingsProvider,
-    Color accentColor,
-    Color surfaceColor,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'music_volume'.tr().toUpperCase(),
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: GameColors.slate300,
-                letterSpacing: 2,
-              ),
-            ),
-            Text(
-              '${(settingsProvider.musicVolume * 100).toStringAsFixed(0)}%',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: accentColor,
-                letterSpacing: 1,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SliderTheme(
-          data: SliderThemeData(
-            trackHeight: 6,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-          ),
-          child: Slider(
-            value: settingsProvider.musicVolume,
-            onChanged: (value) {
-              settingsProvider.setMusicVolume(value);
-              context.read<AudioProvider>().setMusicVolume(value);
-            },
-            min: 0.0,
-            max: 1.0,
-            divisions: 10,
-            activeColor: accentColor,
-            inactiveColor: surfaceColor,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSoundVolumeSlider(
-    BuildContext context,
-    SettingsProvider settingsProvider,
-    Color accentColor,
-    Color surfaceColor,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'sound_volume'.tr().toUpperCase(),
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: GameColors.slate300,
-                letterSpacing: 2,
-              ),
-            ),
-            Text(
-              '${(settingsProvider.soundVolume * 100).toStringAsFixed(0)}%',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: accentColor,
-                letterSpacing: 1,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SliderTheme(
-          data: SliderThemeData(
-            trackHeight: 6,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-          ),
-          child: Slider(
-            value: settingsProvider.soundVolume,
-            onChanged: (value) {
-              settingsProvider.setSoundVolume(value);
-              context.read<AudioProvider>().setSoundVolume(value);
-            },
-            min: 0.0,
-            max: 1.0,
-            divisions: 10,
-            activeColor: accentColor,
-            inactiveColor: surfaceColor,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEndGameButton(
-    BuildContext context,
-    GameProvider gameProvider,
-    Color surfaceColor,
-  ) {
-    return GestureDetector(
-      onTap: () {
-        context.read<AudioProvider>().playUiTapSound();
-        context.read<AudioProvider>().playBackgroundMusic();
-        gameProvider.goToHome();
-        context.go(AppRoutes.home);
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: GameColors.rose500.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: GameColors.rose500.withValues(alpha: 0.5)),
-        ),
-        child: Center(
-          child: Text(
-            'end_game'.tr(),
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: GameColors.rose400,
+            child: Slider(
+              value: value,
+              min: min,
+              max: max,
+              divisions: divisions,
+              onChanged: onChanged,
             ),
           ),
-        ),
+        ],
       ),
     );
   }

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../constants/game_constants.dart';
-import '../../models/game_models.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/credit_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../theme/app_theme.dart';
+import '../tactile/tactile.dart';
 
 /// Color palette for selecting colors in rebuild mode
 class ColorPalette extends StatelessWidget {
@@ -16,57 +17,56 @@ class ColorPalette extends StatelessWidget {
   Widget build(BuildContext context) {
     final gameProvider = context.watch<GameProvider>();
     final creditProvider = context.watch<CreditProvider>();
-    final themeProvider = context.watch<ThemeProvider>();
+    final palette = context.select<ThemeProvider, TactilePalette>(
+      (t) => t.palette,
+    );
 
     final colorCount = gameProvider.currentLevel.colorCount;
     final availableColors = colorOptions.take(colorCount).toList();
     final selectedColor = gameProvider.selectedColor;
-    final buttonSpacing = isSmallScreen ? 6.0 : 8.0;
-    final containerPadding = isSmallScreen ? 8.0 : 12.0;
+    final buttonSpacing = isSmallScreen ? 4.0 : 6.0;
 
     final hints = gameProvider.hints;
     final hasFreeHints = hints > 0;
     final canBuyHint =
         creditProvider.credits >= 5 && creditProvider.canBuyHintToday;
-    final paidHintsRemaining = creditProvider.paidHintsRemaining;
 
-    Widget palette = Container(
-      padding: EdgeInsets.all(containerPadding),
-      decoration: BoxDecoration(
-        color: themeProvider.surfaceColor.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: themeProvider.surfaceColor.withValues(alpha: 0.8),
-        ),
+    return TactileSurface(
+      tone: palette.surface,
+      radius: TactileRadii.xl,
+      softShadow: true,
+      padding: EdgeInsets.fromLTRB(
+        isSmallScreen ? 8 : 12,
+        // Head room for the lifted selection
+        isSmallScreen ? 12 : 16,
+        isSmallScreen ? 8 : 12,
+        isSmallScreen ? 8 : 10,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Color buttons
           ...availableColors.map((color) {
             return Padding(
               padding: EdgeInsets.symmetric(horizontal: buttonSpacing),
-              child: _PaletteButton(
-                color: color,
-                displayColor: themeProvider.getGameColor(color),
+              child: _PaletteKey(
+                tone: palette.toneOf(color),
+                ringColor: palette.textPrimary,
                 isSelected: selectedColor == color,
                 onTap: () => gameProvider.selectColor(color),
-                isSmallScreen: isSmallScreen,
+                size: isSmallScreen ? 44.0 : 52.0,
               ),
             );
           }),
 
-          // Spacer
-          SizedBox(width: buttonSpacing * 1),
+          SizedBox(width: buttonSpacing * 2),
 
-          // Hint button with badge
-          _HintButton(
+          _HintKey(
+            palette: palette,
             hints: hints,
             hasFreeHints: hasFreeHints,
             canBuyHint: canBuyHint,
-            paidHintsRemaining: paidHintsRemaining,
-            isSmallScreen: isSmallScreen,
+            size: isSmallScreen ? 44.0 : 52.0,
             onTap: () {
               if (hasFreeHints) {
                 gameProvider.useHint();
@@ -78,236 +78,137 @@ class ColorPalette extends StatelessWidget {
         ],
       ),
     );
-
-    return palette;
   }
 }
 
-class _PaletteButton extends StatefulWidget {
-  final ColorType color;
-  final Color displayColor;
+class _PaletteKey extends StatelessWidget {
+  final TactileTone tone;
+  final Color ringColor;
   final bool isSelected;
   final VoidCallback onTap;
-  final bool isSmallScreen;
+  final double size;
 
-  const _PaletteButton({
-    required this.color,
-    required this.displayColor,
+  const _PaletteKey({
+    required this.tone,
+    required this.ringColor,
     required this.isSelected,
     required this.onTap,
-    this.isSmallScreen = false,
+    required this.size,
   });
 
   @override
-  State<_PaletteButton> createState() => _PaletteButtonState();
-}
-
-class _PaletteButtonState extends State<_PaletteButton>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 100),
-    );
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.9,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final baseColor = widget.displayColor;
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
 
-    return GestureDetector(
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) {
-        _controller.reverse();
-        widget.onTap();
+    // The chosen key lifts out of the row and gets a ring
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: isSelected ? 1.0 : 0.0),
+      duration: reduceMotion ? Duration.zero : TactileDurations.select,
+      curve: TactileCurves.release,
+      builder: (context, t, child) {
+        return Transform.translate(
+          offset: Offset(0, -6 * t),
+          child: Transform.scale(scale: 1.0 + 0.08 * t, child: child),
+        );
       },
-      onTapCancel: () => _controller.reverse(),
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _scaleAnimation.value * (widget.isSelected ? 1.1 : 0.9),
-            child: child,
-          );
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          width: widget.isSmallScreen ? 40.0 : 48.0,
-          height: widget.isSmallScreen ? 40.0 : 48.0,
-          decoration: BoxDecoration(
-            color: baseColor,
-            borderRadius: BorderRadius.circular(
-              widget.isSmallScreen ? 12.0 : 16.0,
+      child: Semantics(
+        selected: isSelected,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            TactileButton(
+              tone: isSelected ? tone : _dimmed(tone),
+              onTap: onTap,
+              width: size,
+              height: size,
+              radius: size * 0.32,
+              padding: EdgeInsets.zero,
+              child: const SizedBox.shrink(),
             ),
-            boxShadow: widget.isSelected
-                ? [
-                    BoxShadow(
-                      color: baseColor.withValues(alpha: 0.5),
-                      blurRadius: 12,
-                      spreadRadius: 2,
-                    ),
-                  ]
-                : null,
-          ),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // Selection ring
-              if (widget.isSelected)
-                Positioned.fill(
-                  child: Container(
+            if (isSelected)
+              Positioned(
+                left: -4,
+                right: -4,
+                top: -4,
+                bottom: -4,
+                child: IgnorePointer(
+                  child: DecoratedBox(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(
-                        widget.isSmallScreen ? 12.0 : 16.0,
-                      ),
-                      border: Border.all(
-                        color: Colors.white,
-                        width: widget.isSmallScreen ? 3.0 : 4.0,
-                      ),
+                      borderRadius: BorderRadius.circular(size * 0.32 + 4),
+                      border: Border.all(color: ringColor, width: 3),
                     ),
                   ),
                 ),
-
-              // Selection indicator dot
-              if (widget.isSelected)
-                Positioned(
-                  top: -4,
-                  right: -4,
-                  child: Container(
-                    width: widget.isSmallScreen ? 14.0 : 16.0,
-                    height: widget.isSmallScreen ? 14.0 : 16.0,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Container(
-                        width: widget.isSmallScreen ? 6.0 : 8.0,
-                        height: widget.isSmallScreen ? 6.0 : 8.0,
-                        decoration: const BoxDecoration(
-                          color: GameColors.slate900,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-              // Opacity overlay for unselected
-              if (!widget.isSelected)
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(
-                        widget.isSmallScreen ? 12.0 : 16.0,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );
   }
+
+  TactileTone _dimmed(TactileTone t) => TactileTone(
+    Color.lerp(t.face, Colors.black, 0.22)!,
+    Color.lerp(t.lip, Colors.black, 0.22)!,
+  );
 }
 
-class _HintButton extends StatelessWidget {
+class _HintKey extends StatelessWidget {
+  final TactilePalette palette;
   final int hints;
   final bool hasFreeHints;
   final bool canBuyHint;
-  final int paidHintsRemaining;
-  final bool isSmallScreen;
+  final double size;
   final VoidCallback onTap;
 
-  const _HintButton({
+  const _HintKey({
+    required this.palette,
     required this.hints,
     required this.hasFreeHints,
     required this.canBuyHint,
-    required this.paidHintsRemaining,
-    required this.isSmallScreen,
+    required this.size,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final isEnabled = hasFreeHints || canBuyHint;
-    final buttonSize = isSmallScreen ? 40.0 : 48.0;
-    final iconSize = isSmallScreen ? 20.0 : 24.0;
+    final tone = hasFreeHints ? palette.hint : palette.cta;
+    final text = TactileText(palette);
 
-    return GestureDetector(
-      onTap: isEnabled ? onTap : null,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // Main button
-          Container(
-            width: buttonSize,
-            height: buttonSize,
-            decoration: BoxDecoration(
-              color: hasFreeHints
-                  ? GameColors.indigo600
-                  : (canBuyHint ? GameColors.amber500 : GameColors.slate700),
-              borderRadius: BorderRadius.circular(isSmallScreen ? 12.0 : 16.0),
-              boxShadow: isEnabled
-                  ? [
-                      BoxShadow(
-                        color:
-                            (hasFreeHints
-                                    ? GameColors.indigo600
-                                    : GameColors.amber500)
-                                .withValues(alpha: 0.4),
-                        blurRadius: 8,
-                        spreadRadius: 1,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Icon(
-              Icons.lightbulb,
-              color: isEnabled ? Colors.white : GameColors.slate500,
-              size: iconSize,
-            ),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        TactileButton(
+          tone: tone,
+          disabledTone: palette.raised.muted(palette.surface.face),
+          onTap: isEnabled ? onTap : null,
+          width: size,
+          height: size,
+          radius: size * 0.32,
+          padding: EdgeInsets.zero,
+          child: Icon(
+            Icons.lightbulb,
+            size: size * 0.48,
+            color: isEnabled ? null : palette.textMuted,
           ),
+        ),
 
-          // Badge
-          Positioned(
-            top: -6,
-            right: -6,
+        // Badge
+        Positioned(
+          top: -8,
+          right: -8,
+          child: IgnorePointer(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
               decoration: BoxDecoration(
-                color: hasFreeHints
-                    ? GameColors.indigo500
-                    : GameColors.amber700,
+                color: hasFreeHints ? tone.lip : palette.cta.lip,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: GameColors.slate900, width: 2),
+                border: Border.all(color: palette.surface.face, width: 2),
               ),
               child: hasFreeHints
                   ? Text(
                       hints.toString(),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        height: 1,
-                      ),
+                      style: text.number(12, color: Colors.white),
                     )
                   : Row(
                       mainAxisSize: MainAxisSize.min,
@@ -318,21 +219,13 @@ class _HintButton extends StatelessWidget {
                           height: 12,
                         ),
                         const SizedBox(width: 2),
-                        const Text(
-                          '5',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            height: 1,
-                          ),
-                        ),
+                        Text('5', style: text.number(10, color: Colors.white)),
                       ],
                     ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

@@ -1,17 +1,19 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../../constants/game_constants.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/ads_provider.dart';
 import '../../providers/credit_provider.dart';
 import '../../providers/audio_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../router/app_router.dart';
+import '../../theme/app_theme.dart';
+import '../tactile/tactile.dart';
 
-/// Start screen matching the React implementation
+/// Start screen: wordmark, a 2x2 tile board with the play key, shop and bonus
 class StartScreen extends StatefulWidget {
   const StartScreen({super.key});
 
@@ -21,45 +23,25 @@ class StartScreen extends StatefulWidget {
 
 class _StartScreenState extends State<StartScreen>
     with TickerProviderStateMixin {
-  late AnimationController _glowController;
-  late AnimationController _gridTileController;
-  late AnimationController _playButtonController;
-  late AnimationController _shopButtonController;
-  late AnimationController _bonusButtonController;
+  /// One tile at a time gets pressed and pops back
+  late final AnimationController _tilePress = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 520),
+  );
+
+  /// Slow breathing of the play key
+  late final AnimationController _playPulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  );
+
   int _activeTileIndex = 0;
+  Timer? _tileTimer;
+  bool _motionStarted = false;
 
   @override
   void initState() {
     super.initState();
-    _glowController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 20),
-    );
-
-    // Grid tile pop animation - cycles through tiles
-    _gridTileController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-    _startGridTileAnimation();
-
-    // Play button pulse animation
-    _playButtonController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    )..repeat(reverse: true);
-
-    // Shop button pulse animation
-    _shopButtonController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    )..repeat(reverse: true);
-
-    // Bonus button pulse animation
-    _bonusButtonController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    )..repeat(reverse: true);
 
     // Start background music when entering start screen
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -67,38 +49,45 @@ class _StartScreenState extends State<StartScreen>
     });
   }
 
-  void _startGridTileAnimation() async {
-    // Start the glow animation
-    _glowController.repeat();
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    if (reduceMotion) {
+      _tileTimer?.cancel();
+      _tilePress.stop();
+      _playPulse.stop();
+      _motionStarted = false;
+    } else if (!_motionStarted) {
+      _motionStarted = true;
+      _playPulse.repeat(reverse: true);
+      _scheduleTile(const Duration(milliseconds: 600));
+    }
+  }
 
-    _gridTileController.forward(from: 0).then((_) {
-      if (mounted) {
-        final nextIndex = (_activeTileIndex + 1) % 4;
-        setState(() {
-          _activeTileIndex = nextIndex;
-        });
-
-        // If we completed a full cycle (back to tile 0), pause for 2 seconds
-        if (nextIndex == 0) {
-          // Stop glow during pause
-          _glowController.stop();
-          Future.delayed(const Duration(seconds: 10), () {
-            if (mounted) _startGridTileAnimation();
-          });
-        } else {
-          _startGridTileAnimation();
-        }
-      }
+  void _scheduleTile(Duration delay) {
+    _tileTimer?.cancel();
+    _tileTimer = Timer(delay, () {
+      if (!mounted) return;
+      _tilePress.forward(from: 0).whenComplete(() {
+        if (!mounted || !_motionStarted) return;
+        final next = (_activeTileIndex + 1) % 4;
+        setState(() => _activeTileIndex = next);
+        // After a full round the board rests for a while
+        _scheduleTile(
+          next == 0
+              ? const Duration(seconds: 4)
+              : const Duration(milliseconds: 120),
+        );
+      });
     });
   }
 
   @override
   void dispose() {
-    _glowController.dispose();
-    _gridTileController.dispose();
-    _playButtonController.dispose();
-    _shopButtonController.dispose();
-    _bonusButtonController.dispose();
+    _tileTimer?.cancel();
+    _tilePress.dispose();
+    _playPulse.dispose();
     super.dispose();
   }
 
@@ -116,57 +105,66 @@ class _StartScreenState extends State<StartScreen>
 
   @override
   Widget build(BuildContext context) {
-    final gameProvider = context.watch<GameProvider>();
-    final highScore = gameProvider.score.highScore;
+    final highScore = context.select<GameProvider, int>(
+      (g) => g.score.highScore,
+    );
+    final palette = context.select<ThemeProvider, TactilePalette>(
+      (t) => t.palette,
+    );
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final screenHeight = constraints.maxHeight;
-            final isSmallScreen = screenHeight < 667.0;
+            final isSmallScreen = constraints.maxHeight < 667.0;
 
-            // Responsive sizes
-            final titleSpacing = isSmallScreen ? 16.0 : 32.0;
-            final gridSpacing = isSmallScreen ? 16.0 : 32.0;
-
-            final buttonSize = isSmallScreen ? 40.0 : 48.0;
+            final titleSpacing = isSmallScreen ? 20.0 : 36.0;
+            final buttonSize = isSmallScreen ? 44.0 : 48.0;
             final coinSize = isSmallScreen ? 20.0 : 24.0;
-            final titleFontSize = isSmallScreen ? 32.0 : 48.0;
-            final subtitleFontSize = isSmallScreen ? 10.0 : 14.0;
-            final gridSize = isSmallScreen ? 200.0 : 220.0;
+            final titleFontSize = isSmallScreen ? 38.0 : 52.0;
+            final subtitleFontSize = isSmallScreen ? 11.0 : 14.0;
+            final boardSize = isSmallScreen ? 200.0 : 232.0;
 
             return Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: isSmallScreen ? 8 : 24,
+              padding: EdgeInsets.fromLTRB(
+                24,
+                isSmallScreen ? 8 : 24,
+                24,
+                isSmallScreen ? 8 : 16,
               ),
               child: Column(
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildCreditsDisplay(context, coinSize: coinSize),
-                      _buildSettingsButton(context, size: buttonSize),
-                    ],
-                  ),
-                  const Spacer(),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildTitle(
-                        titleFontSize: titleFontSize,
-                        subtitleFontSize: subtitleFontSize,
-                        highScore: highScore,
+                      _buildCreditsDisplay(palette, coinSize: coinSize),
+                      TactileIconButton(
+                        icon: Icons.settings,
+                        tone: palette.raised,
+                        iconColor: palette.textPrimary,
+                        size: buttonSize,
+                        onTap: () {
+                          context.read<AudioProvider>().playUiTapSound();
+                          context.push(AppRoutes.settings);
+                        },
                       ),
-                      SizedBox(height: titleSpacing),
-                      _buildDecorativeGrid(size: gridSize),
-                      SizedBox(height: gridSpacing),
-                      _buildStartSection(context, isSmallScreen: isSmallScreen),
                     ],
                   ),
                   const Spacer(),
+                  _buildTitle(
+                    palette,
+                    titleFontSize: titleFontSize,
+                    subtitleFontSize: subtitleFontSize,
+                    highScore: highScore,
+                  ),
+                  SizedBox(height: titleSpacing),
+                  _buildBoard(palette, size: boardSize),
+                  SizedBox(height: titleSpacing),
+                  _buildSideKeys(context, palette, isSmallScreen),
+                  const Spacer(),
+                  // Quiet strip above the banner: nothing moves next to the ad
+                  const SizedBox(height: 24),
                   _buildBannerAd(),
                 ],
               ),
@@ -177,229 +175,110 @@ class _StartScreenState extends State<StartScreen>
     );
   }
 
-  Widget _buildSettingsButton(BuildContext context, {required double size}) {
-    return GestureDetector(
-      onTap: () {
-        context.read<AudioProvider>().playUiTapSound();
-        _showSettings(context);
-      },
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: GameColors.slate800.withValues(alpha: 0.5),
-          shape: BoxShape.circle,
-          border: Border.all(color: GameColors.slate700),
-        ),
-        child: Icon(
-          Icons.settings,
-          color: GameColors.slate400,
-          size: size * 0.5,
-        ),
-      ),
-    );
-  }
-
   Widget _buildCreditsDisplay(
-    BuildContext context, {
+    TactilePalette palette, {
     required double coinSize,
   }) {
     final creditProvider = context.watch<CreditProvider>();
-    final credits = creditProvider.credits;
-    final isLoaded = creditProvider.isLoaded;
+    final fontSize = coinSize * 0.85;
 
-    final fontSize = coinSize * 0.833; // Proportional to coin size
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: GameColors.slate800.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: GameColors.amber400.withValues(alpha: 0.3)),
-      ),
+    return TactileSurface(
+      tone: palette.surface,
+      radius: TactileRadii.pill,
+      depth: TactileDepth.small,
+      padding: const EdgeInsets.fromLTRB(10, 6, 16, 6),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Image.asset('assets/img/coin.png', width: coinSize, height: coinSize),
           const SizedBox(width: 8),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 3),
-            child: isLoaded
-                ? Text(
-                    credits.toString(),
-                    style: GoogleFonts.fredoka(
-                      fontSize: fontSize,
-                      fontWeight: FontWeight.w600,
-                      color: GameColors.amber400,
-                      shadows: [
-                        Shadow(
-                          color: GameColors.amber400.withValues(alpha: 0.5),
-                          blurRadius: 8,
-                        ),
-                      ],
-                    ),
-                  )
-                : SizedBox(
-                    width: fontSize * 0.8,
-                    height: fontSize * 0.8,
-                    child: const CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        GameColors.amber400,
-                      ),
-                    ),
+          creditProvider.isLoaded
+              ? Text(
+                  creditProvider.credits.toString(),
+                  style: TactileText(palette).number(
+                    fontSize,
+                    color: palette.cta.face,
+                    weight: FontWeight.w600,
                   ),
-          ),
+                )
+              : SizedBox(
+                  width: fontSize * 0.8,
+                  height: fontSize * 0.8,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(palette.cta.face),
+                  ),
+                ),
         ],
       ),
     );
   }
 
-  Widget _buildShopButton(BuildContext context, {required double size}) {
-    return AnimatedBuilder(
-      animation: _shopButtonController,
-      builder: (context, child) {
-        final scale = 1.0 + (_shopButtonController.value * 0.08);
-        final glowOpacity = 0.3 + (_shopButtonController.value * 0.4);
-
-        return GestureDetector(
-          onTap: () {
-            context.read<AudioProvider>().playUiTapSound();
-            _openShop(context);
-          },
-          child: Transform.scale(
-            scale: scale,
-            child: Container(
-              width: size,
-              height: size,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    GameColors.violet500,
-                    Color(0xFF7C3AED), // violet-600
-                  ],
-                ),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: GameColors.violet500.withValues(alpha: glowOpacity),
-                    blurRadius: 16,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: Icon(
-                Icons.storefront,
-                color: Colors.white,
-                size: size * 0.5,
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildTitle({
+  Widget _buildTitle(
+    TactilePalette palette, {
     required double titleFontSize,
     required double subtitleFontSize,
     required int highScore,
   }) {
+    final text = TactileText(palette);
+
+    // Letters get the same lip as every other piece
+    TextStyle extruded(Color face, Color lip) => text.wordmark.copyWith(
+      fontSize: titleFontSize,
+      color: face,
+      shadows: [Shadow(color: lip, offset: Offset(0, titleFontSize * 0.085))],
+    );
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Title with glow effect
-        ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Colors.white, Colors.white],
-          ).createShader(bounds),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-            child: Text.rich(
-              TextSpan(
-                style: TextStyle(
-                  fontSize: titleFontSize,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -2,
-                  fontFamily: 'Outfit',
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: 'GRID',
+                  style: extruded(
+                    palette.textPrimary,
+                    Color.lerp(palette.textPrimary, palette.background, 0.62)!,
+                  ),
                 ),
-                children: [
-                  TextSpan(
-                    text: 'GRID',
-                    style: TextStyle(
-                      color: Colors.white,
-                      letterSpacing: -5,
-                      shadows: [
-                        Shadow(
-                          color: Colors.white.withValues(alpha: 0.5),
-                          blurRadius: 20,
-                        ),
-                        Shadow(
-                          color: Colors.white.withValues(alpha: 0.3),
-                          blurRadius: 40,
-                        ),
-                      ],
-                    ),
-                  ),
-                  TextSpan(
-                    text: 'MASTER',
-                    style: TextStyle(
-                      color: GameColors.emerald400,
-                      letterSpacing: -5,
-                      shadows: [
-                        Shadow(
-                          color: GameColors.emerald400.withValues(alpha: 0.6),
-                          blurRadius: 20,
-                        ),
-                        Shadow(
-                          color: GameColors.emerald400.withValues(alpha: 0.4),
-                          blurRadius: 40,
-                        ),
-                        Shadow(
-                          color: GameColors.emerald400.withValues(alpha: 0.2),
-                          blurRadius: 60,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                TextSpan(
+                  text: 'MASTER',
+                  style: extruded(palette.primary.face, palette.primary.lip),
+                ),
+              ],
             ),
           ),
         ),
+        SizedBox(height: titleFontSize * 0.22),
         Text(
           'app_subtitle'.tr().toUpperCase(),
-          style: TextStyle(
+          textAlign: TextAlign.center,
+          style: text.label.copyWith(
             fontSize: subtitleFontSize,
-            fontWeight: FontWeight.w500,
-            color: GameColors.slate400,
-            letterSpacing: 3,
+            color: palette.textSecondary,
+            letterSpacing: 2.4,
           ),
         ),
         if (highScore > 0) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Row(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: [
               Text(
                 'your_record'.tr().toUpperCase(),
-                style: TextStyle(
-                  fontSize: subtitleFontSize * 0.85,
-                  fontWeight: FontWeight.w600,
-                  color: GameColors.slate500,
-                  letterSpacing: 2,
-                ),
+                style: text.label.copyWith(fontSize: subtitleFontSize * 0.9),
               ),
               const SizedBox(width: 8),
               Text(
                 highScore.toString(),
-                style: TextStyle(
-                  fontSize: subtitleFontSize * 1.2,
-                  fontWeight: FontWeight.w900,
-                  color: GameColors.emerald400,
+                style: text.number(
+                  subtitleFontSize * 1.4,
+                  color: palette.accent,
                 ),
               ),
             ],
@@ -409,341 +288,144 @@ class _StartScreenState extends State<StartScreen>
     );
   }
 
-  Widget _buildDecorativeGrid({required double size}) {
+  Widget _buildBoard(TactilePalette palette, {required double size}) {
+    // red, blue, orange, purple
+    final tones = [
+      palette.gameTones[0],
+      palette.gameTones[1],
+      palette.gameTones[5],
+      palette.gameTones[4],
+    ];
+    const gap = 10.0;
+    const pad = 12.0;
+
+    void start() {
+      context.read<AudioProvider>().playUiTapSound();
+      _startClassicMode(context);
+    }
+
     return GestureDetector(
-      onTap: () {
-        context.read<AudioProvider>().playUiTapSound();
-        _startClassicMode(context);
-      },
+      onTap: start,
       child: SizedBox(
         width: size,
         height: size,
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Subtle glow behind grid
-            Container(
-              width: size * 0.91, // 200/220
-              height: size * 0.91,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(size * 0.18), // 40/220
-                boxShadow: [
-                  BoxShadow(
-                    color: GameColors.blue.withValues(alpha: 0.15),
-                    blurRadius: size * 0.27, // 60/220
-                    spreadRadius: size * 0.045, // 10/220
+            Positioned.fill(
+              child: RepaintBoundary(
+                child: TactileWell(
+                  color: palette.backgroundDeep,
+                  radius: TactileRadii.xl + 4,
+                  padding: const EdgeInsets.all(pad),
+                  child: AnimatedBuilder(
+                    animation: _tilePress,
+                    builder: (context, _) {
+                      return GridView.count(
+                        padding: EdgeInsets.zero,
+                        crossAxisCount: 2,
+                        crossAxisSpacing: gap,
+                        mainAxisSpacing: gap,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: [
+                          for (int i = 0; i < 4; i++)
+                            _buildBoardTile(tones[i], i == _activeTileIndex),
+                        ],
+                      );
+                    },
                   ),
-                  BoxShadow(
-                    color: GameColors.purple.withValues(alpha: 0.1),
-                    blurRadius: size * 0.36, // 80/220
-                    spreadRadius: size * 0.09, // 20/220
-                  ),
-                ],
+                ),
               ),
             ),
-            // The fancy 2x2 grid
-            _build3DGrid(),
-            // Animated Play Button overlay
-            _buildPlayButton(size),
+            _buildPlayKey(palette, size, start),
           ],
         ),
       ),
     );
   }
 
-  Widget _build3DGrid() {
-    // Define tile colors and positions
-    final tiles = [
-      {
-        'top': GameColors.red,
-        'bottom': const Color(0xFFBE1E4E),
-        'row': 0,
-        'col': 0,
-      },
-      {
-        'top': GameColors.blue,
-        'bottom': const Color(0xFF0284C7),
-        'row': 0,
-        'col': 1,
-      },
-      {
-        'top': GameColors.orange,
-        'bottom': const Color(0xFFEA580C),
-        'row': 1,
-        'col': 0,
-      },
-      {
-        'top': GameColors.purple,
-        'bottom': const Color(0xFF7C3AED),
-        'row': 1,
-        'col': 1,
-      },
-    ];
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final cellSize = (constraints.maxWidth - 10) / 2;
-        final cellHeight = (constraints.maxHeight - 10) / 2;
-
-        // Build tiles with proper z-ordering (active tile on top)
-        final orderedTiles = <int>[];
-        for (int i = 0; i < 4; i++) {
-          if (i != _activeTileIndex) orderedTiles.add(i);
-        }
-        orderedTiles.add(_activeTileIndex); // Active tile last (on top)
-
-        return Stack(
-          clipBehavior: Clip.none,
-          children: orderedTiles.map((index) {
-            final tile = tiles[index];
-            final row = tile['row'] as int;
-            final col = tile['col'] as int;
-            final isActive = index == _activeTileIndex;
-
-            final left = col * (cellSize + 10);
-            final top = row * (cellHeight + 10);
-
-            return AnimatedBuilder(
-              animation: _gridTileController,
-              builder: (context, child) {
-                double scale = 1.0;
-                double elevation = 0.0;
-
-                if (isActive) {
-                  // Pop up and down animation
-                  final progress = _gridTileController.value;
-                  if (progress < 0.5) {
-                    // Going up
-                    scale = 1.0 + (0.15 * (progress * 2));
-                    elevation = 20 * (progress * 2);
-                  } else {
-                    // Going down
-                    scale = 1.15 - (0.15 * ((progress - 0.5) * 2));
-                    elevation = 20 * (1 - ((progress - 0.5) * 2));
-                  }
-                }
-
-                return Positioned(
-                  left: left,
-                  top: top - (isActive ? elevation * 0.3 : 0),
-                  width: cellSize,
-                  height: cellHeight,
-                  child: Transform.scale(
-                    scale: scale,
-                    child: _build3DCell(
-                      tile['top'] as Color,
-                      tile['bottom'] as Color,
-                      isActive: isActive,
-                      elevation: elevation,
-                    ),
-                  ),
-                );
-              },
-            );
-          }).toList(),
-        );
-      },
+  Widget _buildBoardTile(TactileTone tone, bool isActive) {
+    double press = 0;
+    double scale = 1;
+    if (isActive && _tilePress.isAnimating) {
+      final t = _tilePress.value;
+      // Down for the first third, then the overshoot pop
+      if (t < 0.3) {
+        press = Curves.easeOut.transform(t / 0.3);
+      } else {
+        final p = (t - 0.3) / 0.7;
+        press = 1 - Curves.easeOut.transform((p * 3).clamp(0.0, 1.0));
+        scale = 0.94 + (TactileCurves.popScale.transform(p) - 0.6) * 0.15;
+      }
+    }
+    return Transform.scale(
+      scale: scale,
+      child: TactileCell(tone: tone, radius: TactileRadii.lg, press: press),
     );
   }
 
-  Widget _build3DCell(
-    Color topColor,
-    Color bottomColor, {
-    bool isActive = false,
-    double elevation = 0,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [topColor, Color.lerp(topColor, bottomColor, 0.5)!],
-        ),
-        boxShadow: [
-          // Bottom shadow for 3D depth
-          BoxShadow(
-            color: bottomColor.withValues(alpha: 0.8),
-            offset: Offset(0, 4 + elevation * 0.2),
-            blurRadius: elevation * 0.5,
-            spreadRadius: 0,
-          ),
-          // Outer glow - enhanced when active
-          BoxShadow(
-            color: topColor.withValues(alpha: isActive ? 0.6 : 0.3),
-            blurRadius: 12 + elevation,
-            spreadRadius: isActive ? 4 : 0,
-          ),
-        ],
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            stops: const [0.0, 0.3, 1.0],
-            colors: [
-              Colors.white.withValues(alpha: isActive ? 0.35 : 0.25),
-              Colors.white.withValues(alpha: isActive ? 0.1 : 0.05),
-              Colors.transparent,
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPlayButton(double gridSize) {
+  Widget _buildPlayKey(
+    TactilePalette palette,
+    double boardSize,
+    VoidCallback onTap,
+  ) {
+    final keySize = boardSize * 0.4;
     return AnimatedBuilder(
-      animation: _playButtonController,
+      animation: _playPulse,
       builder: (context, child) {
-        final scale = 1.0 + (_playButtonController.value * 0.2);
-
         return Transform.scale(
-          scale: scale,
-          child: Container(
-            width: gridSize * 0.32,
-            height: gridSize * 0.32,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  GameColors.emerald400.withValues(alpha: 0.7),
-                  GameColors.emerald500.withValues(alpha: 0.7),
-                ],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: GameColors.emerald400.withValues(alpha: 0.4),
-                  blurRadius: 20 + (_playButtonController.value * 15),
-                  spreadRadius: 3 + (_playButtonController.value * 4),
-                ),
-                BoxShadow(
-                  color: GameColors.emerald400.withValues(alpha: 0.2),
-                  blurRadius: 40 + (_playButtonController.value * 20),
-                  spreadRadius: 5 + (_playButtonController.value * 5),
-                ),
-              ],
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Outer ring
-                Container(
-                  width: gridSize * 0.26,
-                  height: gridSize * 0.26,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.25),
-                      width: 2,
-                    ),
-                  ),
-                ),
-                // Inner icon - play arrow
-                Icon(
-                  Icons.play_arrow_rounded,
-                  size: gridSize * 0.16,
-                  color: Colors.white.withValues(alpha: 0.9),
-                ),
-              ],
-            ),
-          ),
+          scale: 1.0 + 0.06 * Curves.easeInOut.transform(_playPulse.value),
+          child: child,
         );
       },
+      child: TactileButton(
+        tone: palette.cta,
+        onTap: onTap,
+        width: keySize,
+        height: keySize,
+        radius: keySize / 2,
+        softShadow: true,
+        padding: EdgeInsets.zero,
+        child: Icon(Icons.play_arrow_rounded, size: keySize * 0.62),
+      ),
     );
   }
 
-  Widget _buildStartSection(
-    BuildContext context, {
-    required bool isSmallScreen,
-  }) {
-    final adsProvider = context.watch<AdsProvider>();
-    final hasRewardedAd = adsProvider.isRewardedAdLoaded;
-    final buttonSize = isSmallScreen ? 40.0 : 48.0;
+  Widget _buildSideKeys(
+    BuildContext context,
+    TactilePalette palette,
+    bool isSmallScreen,
+  ) {
+    final hasRewardedAd = context.select<AdsProvider, bool>(
+      (a) => a.isRewardedAdLoaded,
+    );
+    final size = isSmallScreen ? 52.0 : 58.0;
 
-    return Column(
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // x2 Bonus with Ad + Shop Button
-        SizedBox(height: isSmallScreen ? 12 : 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildBonusButton(
-              context,
-              icon: const Icon(
-                Icons.play_circle_filled_rounded,
-                size: 24,
-                color: Colors.white,
-              ),
-              isEnabled: hasRewardedAd,
-              onTap: () => _activateBonusWithAd(context),
-            ),
-            const SizedBox(width: 12),
-            _buildShopButton(context, size: buttonSize),
-          ],
+        // x2 bonus through a rewarded ad
+        AnimatedOpacity(
+          duration: const Duration(milliseconds: 200),
+          opacity: hasRewardedAd ? 1.0 : 0.45,
+          child: TactileIconButton(
+            icon: Icons.play_circle_filled_rounded,
+            tone: TactileColors.orange,
+            size: size,
+            onTap: hasRewardedAd ? () => _activateBonusWithAd(context) : null,
+          ),
+        ),
+        const SizedBox(width: 16),
+        TactileIconButton(
+          icon: Icons.storefront,
+          tone: palette.hint,
+          size: size,
+          onTap: () {
+            context.read<AudioProvider>().playUiTapSound();
+            _openShop(context);
+          },
         ),
       ],
-    );
-  }
-
-  Widget _buildBonusButton(
-    BuildContext context, {
-    required Widget icon,
-    required bool isEnabled,
-    required VoidCallback onTap,
-  }) {
-    return AnimatedBuilder(
-      animation: _bonusButtonController,
-      builder: (context, child) {
-        final scale = isEnabled
-            ? 1.0 + (_bonusButtonController.value * 0.1)
-            : 1.0;
-        final glowOpacity = isEnabled
-            ? 0.4 + (_bonusButtonController.value * 0.4)
-            : 0.0;
-
-        return GestureDetector(
-          onTap: isEnabled ? onTap : null,
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 200),
-            opacity: isEnabled ? 1.0 : 0.4,
-            child: Transform.scale(
-              scale: scale,
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      GameColors.amber400.withValues(alpha: 0.9),
-                      GameColors.orange500.withValues(alpha: 0.9),
-                    ],
-                  ),
-                  shape: BoxShape.circle,
-                  boxShadow: isEnabled
-                      ? [
-                          BoxShadow(
-                            color: GameColors.amber400.withValues(
-                              alpha: glowOpacity,
-                            ),
-                            blurRadius: 14,
-                            spreadRadius: 2,
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Center(child: icon),
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -777,9 +459,5 @@ class _StartScreenState extends State<StartScreen>
       height: adsProvider.bannerAd!.size.height.toDouble(),
       child: AdWidget(ad: adsProvider.bannerAd!),
     );
-  }
-
-  void _showSettings(BuildContext context) {
-    context.push(AppRoutes.settings);
   }
 }

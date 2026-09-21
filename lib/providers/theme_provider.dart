@@ -1,18 +1,27 @@
 import 'package:flutter/material.dart';
 import '../constants/game_constants.dart';
 import '../models/game_models.dart';
+import '../theme/tactile_palette.dart';
+import '../theme/tactile_tokens.dart';
 
 /// Zentraler Provider für das Theme-Management
 /// Verwaltet das aktuelle Theme und stellt Farben für alle Widgets bereit
 class ThemeProvider extends ChangeNotifier {
   CosmeticThemeType _currentThemeType = CosmeticThemeType.defaultTheme;
   CosmeticThemeColors _currentThemeColors = CosmeticThemeColors.defaultTheme;
+  TactilePalette _palette = TactilePalette.standard;
 
   /// Das aktuelle Theme-Typ
   CosmeticThemeType get currentThemeType => _currentThemeType;
 
   /// Die aktuellen Theme-Farben
   CosmeticThemeColors get colors => _currentThemeColors;
+
+  /// Tactile-Tokens (Flächen + Lips) für das aktuelle Theme
+  TactilePalette get palette => _palette;
+
+  /// Fläche und Lip für einen ColorType
+  TactileTone getGameTone(ColorType type) => _palette.toneOf(type);
 
   /// Hintergrundfarbe
   Color get backgroundColor => _currentThemeColors.background;
@@ -37,22 +46,7 @@ class ThemeProvider extends ChangeNotifier {
 
   /// Holt die Farbe für einen bestimmten ColorType
   /// Verwendet Theme-Farben wenn vorhanden, sonst Standard-Farben
-  Color getGameColor(ColorType type) {
-    if (type == ColorType.none) {
-      return _currentThemeColors.surface.withValues(alpha: 0.2);
-    }
-
-    // Prüfen ob das Theme custom gameColors hat
-    if (_currentThemeColors.gameColors.isNotEmpty) {
-      final colorIndex = type.index;
-      if (colorIndex < _currentThemeColors.gameColors.length) {
-        return _currentThemeColors.gameColors[colorIndex];
-      }
-    }
-
-    // Fallback zu Standard-Farben
-    return GameColors.getColor(type);
-  }
+  Color getGameColor(ColorType type) => _palette.toneOf(type).face;
 
   /// Holt alle verfügbaren Spielfarben für das aktuelle Theme
   List<Color> getGameColors(int count) {
@@ -68,6 +62,7 @@ class ThemeProvider extends ChangeNotifier {
     if (_currentThemeType != themeType) {
       _currentThemeType = themeType;
       _currentThemeColors = CosmeticThemeColors.getTheme(themeType);
+      _palette = TactilePalette.fromTheme(themeType, _currentThemeColors);
       notifyListeners();
     }
   }
@@ -81,16 +76,4 @@ class ThemeProvider extends ChangeNotifier {
     final themeType = cosmetic.themeType ?? CosmeticThemeType.defaultTheme;
     setTheme(themeType);
   }
-
-  /// Holt die Slate-Farben (UI-Farben, Theme-unabhängig für bestimmte UI-Elemente)
-  static Color get slate50 => GameColors.slate50;
-  static Color get slate100 => GameColors.slate100;
-  static Color get slate200 => GameColors.slate200;
-  static Color get slate300 => GameColors.slate300;
-  static Color get slate400 => GameColors.slate400;
-  static Color get slate500 => GameColors.slate500;
-  static Color get slate600 => GameColors.slate600;
-  static Color get slate700 => GameColors.slate700;
-  static Color get slate800 => GameColors.slate800;
-  static Color get slate900 => GameColors.slate900;
 }

@@ -1,48 +1,17 @@
 import 'package:flutter/material.dart';
 import '../models/game_models.dart';
 
-/// Color mappings matching the React implementation's Tailwind classes
+/// Default game colors (tactile palette). Lips live in theme/tactile_tokens.
 class GameColors {
   // Primary game colors
-  static const Color red = Color(0xFFF43F5E); // rose-500
-  static const Color blue = Color(0xFF0EA5E9); // sky-500
-  static const Color green = Color(0xFF10B981); // emerald-500
-  static const Color yellow = Color(0xFFFBBF24); // amber-400
-  static const Color purple = Color(0xFF8B5CF6); // violet-500
-  static const Color orange = Color(0xFFF97316); // orange-500
-  static const Color pink = Color(0xFFD946EF); // fuchsia-500
-  static const Color none = Color(0xFFE2E8F0); // slate-200
-
-  // UI colors matching slate palette
-  static const Color slate50 = Color(0xFFF8FAFC);
-  static const Color slate100 = Color(0xFFF1F5F9);
-  static const Color slate200 = Color(0xFFE2E8F0);
-  static const Color slate300 = Color(0xFFCBD5E1);
-  static const Color slate400 = Color(0xFF94A3B8);
-  static const Color slate500 = Color(0xFF64748B);
-  static const Color slate600 = Color(0xFF475569);
-  static const Color slate700 = Color(0xFF334155);
-  static const Color slate800 = Color(0xFF1E293B);
-  static const Color slate900 = Color(0xFF0F172A);
-  static const Color slate950 = Color(0xFF020617);
-
-  // Accent colors
-  static const Color emerald400 = Color(0xFF34D399);
-  static const Color emerald500 = Color(0xFF10B981);
-  static const Color emerald600 = Color(0xFF059669);
-  static const Color emerald800 = Color(0xFF065F46);
-  static const Color amber400 = Color(0xFFFBBF24);
-  static const Color amber500 = Color(0xFFF59E0B);
-  static const Color amber700 = Color(0xFFB45309);
-  static const Color rose400 = Color(0xFFFB7185);
-  static const Color rose500 = Color(0xFFF43F5E);
-  static const Color indigo500 = Color(0xFF6366F1);
-  static const Color indigo600 = Color(0xFF4F46E5);
-  static const Color orange500 = Color(0xFFF97316);
-  static const Color blue500 = Color(0xFF3B82F6);
-  static const Color blue900 = Color(0xFF1E3A8A);
-  static const Color violet500 = Color(0xFF8B5CF6);
-  static const Color violet700 = Color(0xFF6D28D9);
+  static const Color red = Color(0xFFFF6B5E);
+  static const Color blue = Color(0xFF3BA3F5);
+  static const Color green = Color(0xFF2CCB8C);
+  static const Color yellow = Color(0xFFFFC83D);
+  static const Color purple = Color(0xFF9D7BFF);
+  static const Color orange = Color(0xFFFF9447);
+  static const Color pink = Color(0xFFFF72B6);
+  static const Color none = Color(0xFF2A2F57);
 
   /// Get color for a ColorType
   static Color getColor(ColorType type) {
@@ -62,7 +31,7 @@ class GameColors {
       case ColorType.pink:
         return pink;
       case ColorType.none:
-        return slate600;
+        return none;
     }
   }
 }
@@ -90,13 +59,13 @@ class CosmeticThemeColors {
   });
 
   static const defaultTheme = CosmeticThemeColors(
-    primary: GameColors.emerald500,
-    secondary: GameColors.amber400,
-    background: GameColors.slate900,
-    surface: GameColors.slate800,
-    accent: GameColors.emerald400,
-    textPrimary: GameColors.slate50,
-    textSecondary: GameColors.slate400,
+    primary: GameColors.green,
+    secondary: GameColors.yellow,
+    background: Color(0xFF1B1F3B),
+    surface: Color(0xFF2A2F57),
+    accent: Color(0xFF5FE0B0),
+    textPrimary: Color(0xFFF4F5FF),
+    textSecondary: Color(0xFFA3A9D6),
   );
 
   static const zenCalm = CosmeticThemeColors(

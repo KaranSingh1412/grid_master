@@ -3,11 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import '../../constants/game_constants.dart';
 import '../../models/game_models.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/audio_provider.dart';
 import '../../providers/ads_provider.dart';
+import '../../providers/theme_provider.dart';
+import '../../theme/app_theme.dart';
+import '../tactile/tactile.dart';
 import '../game/game_header.dart';
 import '../game/game_grid.dart';
 import '../game/color_palette.dart';
@@ -101,6 +103,9 @@ class _GameScreenState extends State<GameScreen>
   @override
   Widget build(BuildContext context) {
     final gameProvider = context.watch<GameProvider>();
+    final palette = context.select<ThemeProvider, TactilePalette>(
+      (t) => t.palette,
+    );
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -111,62 +116,75 @@ class _GameScreenState extends State<GameScreen>
             final isSmallScreen = screenHeight < 600;
             final spacing = isSmallScreen ? 6.0 : 12.0;
 
-            return Stack(
+            // Overlays cover the play area only, never the banner below it
+            return Column(
               children: [
-                // Main game content
-                Column(
-                  children: [
-                    // Header
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: GameHeader(isSmallScreen: isSmallScreen),
-                    ),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      // Main game content
+                      Column(
+                        children: [
+                          // Header
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: GameHeader(isSmallScreen: isSmallScreen),
+                          ),
 
-                    SizedBox(height: spacing * 0.5),
+                          SizedBox(height: spacing * 0.5),
 
-                    // Timer progress bar
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: _buildTimerBar(gameProvider),
-                    ),
+                          // Timer progress bar
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: _buildTimerBar(gameProvider, palette),
+                          ),
 
-                    SizedBox(height: spacing * 0.5),
+                          SizedBox(height: spacing * 0.5),
 
-                    // Info row with label, timer, and buttons
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: _buildInfoRow(
-                        context,
-                        gameProvider,
-                        isSmallScreen,
+                          // Info row with label, timer, and buttons
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: _buildInfoRow(
+                              context,
+                              gameProvider,
+                              palette,
+                              isSmallScreen,
+                            ),
+                          ),
+
+                          SizedBox(height: spacing),
+
+                          // Grid
+                          Flexible(
+                            child: GameGrid(isSmallScreen: isSmallScreen),
+                          ),
+
+                          SizedBox(height: spacing),
+
+                          // Controls area
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: _buildControls(
+                              context,
+                              gameProvider,
+                              palette,
+                              isSmallScreen,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
 
-                    SizedBox(height: spacing),
-
-                    // Grid
-                    Flexible(child: GameGrid(isSmallScreen: isSmallScreen)),
-
-                    SizedBox(height: spacing),
-
-                    // Controls area
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: _buildControls(
-                        context,
-                        gameProvider,
-                        isSmallScreen,
-                      ),
-                    ),
-
-                    // Ad Banner at the bottom, clearly separated from controls
-                    _buildAdBanner(context, isSmallScreen),
-                  ],
+                      // Overlays
+                      if (gameProvider.isPaused)
+                        const Positioned.fill(child: PauseOverlay()),
+                      if (gameProvider.isGameOver)
+                        const Positioned.fill(child: FeedbackOverlay()),
+                    ],
+                  ),
                 ),
 
-                // Overlays
-                if (gameProvider.isPaused) const PauseOverlay(),
-                if (gameProvider.isGameOver) const FeedbackOverlay(),
+                // Ad Banner at the bottom, clearly separated from controls
+                _buildAdBanner(context, palette, isSmallScreen),
               ],
             );
           },
@@ -175,7 +193,11 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
-  Widget _buildAdBanner(BuildContext context, bool isSmallScreen) {
+  Widget _buildAdBanner(
+    BuildContext context,
+    TactilePalette palette,
+    bool isSmallScreen,
+  ) {
     final adsProvider = context.watch<AdsProvider>();
 
     if (!adsProvider.isGameBannerAdLoaded || adsProvider.gameBannerAd == null) {
@@ -195,11 +217,11 @@ class _GameScreenState extends State<GameScreen>
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(height: isSmallScreen ? 20.0 : 28.0),
-        Container(height: 1, color: GameColors.slate700),
+        Container(height: 2, color: palette.surface.lip),
         Container(
           width: double.infinity,
           height: 60,
-          color: GameColors.slate950,
+          color: palette.backgroundDeep,
           alignment: Alignment.center,
           child: _cachedAdWidget!,
         ),
@@ -207,54 +229,38 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
-  Widget _buildTimerBar(GameProvider gameProvider) {
-    final isPreview = gameProvider.isPreview;
+  Widget _buildTimerBar(GameProvider gameProvider, TactilePalette palette) {
+    final fill = gameProvider.isPreview ? palette.cta : palette.primary;
 
     return AnimatedBuilder(
       animation: _timerAnimation,
       builder: (context, child) {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final animatedWidth =
-                constraints.maxWidth * _timerAnimation.value.clamp(0.0, 1.0);
-            return Container(
-              width: double.infinity,
-              height: 8,
-              decoration: BoxDecoration(
-                color: GameColors.slate800.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: GameColors.slate700),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 80),
-                    curve: Curves.linear,
-                    width: animatedWidth,
-                    decoration: BoxDecoration(
-                      color: isPreview
-                          ? GameColors.amber400
-                          : GameColors.emerald400,
-                      borderRadius: BorderRadius.circular(4),
-                      boxShadow: [
-                        BoxShadow(
-                          color:
-                              (isPreview
-                                      ? GameColors.amber400
-                                      : GameColors.emerald400)
-                                  .withValues(alpha: 0.6),
-                          blurRadius: 8,
-                          spreadRadius: 1,
-                        ),
-                      ],
-                    ),
+        return TactileWell(
+          color: palette.backgroundDeep,
+          radius: TactileRadii.pill,
+          padding: const EdgeInsets.all(3),
+          child: SizedBox(
+            height: 10,
+            child: FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: _timerAnimation.value.clamp(0.0, 1.0),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(TactileRadii.pill),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color.lerp(fill.face, Colors.white, 0.2)!,
+                      fill.face,
+                      fill.lip,
+                    ],
+                    stops: const [0.0, 0.55, 1.0],
                   ),
                 ),
               ),
-            );
-          },
+            ),
+          ),
         );
       },
     );
@@ -263,8 +269,10 @@ class _GameScreenState extends State<GameScreen>
   Widget _buildInfoRow(
     BuildContext context,
     GameProvider gameProvider,
+    TactilePalette palette,
     bool isSmallScreen,
   ) {
+    final text = TactileText(palette);
     final isPreview = gameProvider.isPreview;
     final isRebuild = gameProvider.isRebuild;
     final isPaused = gameProvider.isPaused;
@@ -295,13 +303,11 @@ class _GameScreenState extends State<GameScreen>
               children: [
                 Text(
                   labelText,
-                  style: TextStyle(
+                  style: text.label.copyWith(
                     fontSize: isSmallScreen ? 10.0 : 12.0,
-                    fontWeight: FontWeight.w600,
                     color: isShowSolution
-                        ? GameColors.rose500
-                        : Colors.white.withValues(alpha: 0.6),
-                    letterSpacing: 1,
+                        ? palette.danger.face
+                        : palette.textSecondary,
                   ),
                 ),
                 SizedBox(height: isSmallScreen ? 1.0 : 2.0),
@@ -309,21 +315,14 @@ class _GameScreenState extends State<GameScreen>
                   children: [
                     Text(
                       '${'fields'.tr().toUpperCase()}:',
-                      style: TextStyle(
-                        fontSize: isSmallScreen ? 8.0 : 10.0,
-                        fontWeight: FontWeight.w700,
-                        color: GameColors.slate400,
-                        letterSpacing: 0.5,
+                      style: text.label.copyWith(
+                        fontSize: isSmallScreen ? 10.0 : 11.0,
                       ),
                     ),
                     const SizedBox(width: 4),
                     Text(
                       patternSize.toString(),
-                      style: TextStyle(
-                        fontSize: isSmallScreen ? 12.0 : 14.0,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
+                      style: text.number(isSmallScreen ? 12.0 : 14.0),
                     ),
                   ],
                 ),
@@ -339,17 +338,15 @@ class _GameScreenState extends State<GameScreen>
                 valueListenable: gameProvider.timerListenable,
                 builder: (context, timer, _) {
                   final timerColor = isPreview
-                      ? GameColors.amber400
+                      ? palette.cta.face
                       : (isRebuild && timer < 2)
-                      ? GameColors.rose500
-                      : GameColors.emerald400;
+                      ? palette.danger.face
+                      : palette.primary.face;
                   return AnimatedDefaultTextStyle(
                     duration: const Duration(milliseconds: 200),
-                    style: TextStyle(
-                      fontSize: isSmallScreen ? 24.0 : 30.0,
-                      fontWeight: FontWeight.w900,
+                    style: text.number(
+                      isSmallScreen ? 24.0 : 30.0,
                       color: timerColor,
-                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                     child: Text(isLevelUp ? ' ' : '${timer.ceil()}s'),
                   );
@@ -363,10 +360,12 @@ class _GameScreenState extends State<GameScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                _buildIconButton(
-                  isPaused ? Icons.play_arrow : Icons.pause,
-                  () => gameProvider.togglePause(),
-                  isSmallScreen,
+                TactileIconButton(
+                  icon: isPaused ? Icons.play_arrow : Icons.pause,
+                  tone: palette.raised,
+                  iconColor: palette.textPrimary,
+                  size: isSmallScreen ? 44.0 : 48.0,
+                  onTap: () => gameProvider.togglePause(),
                 ),
               ],
             ),
@@ -376,38 +375,10 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
-  Widget _buildIconButton(
-    IconData icon,
-    VoidCallback onTap, [
-    bool isSmallScreen = false,
-  ]) {
-    final size = isSmallScreen ? 36.0 : 40.0;
-    final iconSize = isSmallScreen ? 18.0 : 20.0;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: GameColors.slate800,
-          shape: BoxShape.circle,
-          border: Border.all(color: GameColors.slate700),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Icon(icon, color: GameColors.slate400, size: iconSize),
-      ),
-    );
-  }
-
   Widget _buildControls(
     BuildContext context,
     GameProvider gameProvider,
+    TactilePalette palette,
     bool isSmallScreen,
   ) {
     final isPreview = gameProvider.isPreview;
@@ -425,7 +396,7 @@ class _GameScreenState extends State<GameScreen>
             padding: EdgeInsets.symmetric(
               horizontal: isSmallScreen ? 8.0 : 16.0,
             ),
-            child: _buildSkipButton(gameProvider, isSmallScreen),
+            child: _buildSkipButton(gameProvider, palette, isSmallScreen),
           ),
         ],
       );
@@ -434,34 +405,22 @@ class _GameScreenState extends State<GameScreen>
     return const SizedBox.shrink();
   }
 
-  Widget _buildSkipButton(GameProvider gameProvider, bool isSmallScreen) {
-    return GestureDetector(
+  Widget _buildSkipButton(
+    GameProvider gameProvider,
+    TactilePalette palette,
+    bool isSmallScreen,
+  ) {
+    return TactileButton(
+      tone: palette.cta,
+      expand: true,
+      softShadow: true,
+      padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 10.0 : 14.0),
       onTap: () => gameProvider.skipPreview(),
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 12.0 : 16.0),
-        decoration: BoxDecoration(
-          color: GameColors.amber400.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: GameColors.amber400.withValues(alpha: 0.5)),
-          boxShadow: [
-            BoxShadow(
-              color: GameColors.amber400.withValues(alpha: 0.1),
-              blurRadius: 12,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            'skip'.tr(),
-            style: TextStyle(
-              fontSize: isSmallScreen ? 14.0 : 16.0,
-              fontWeight: FontWeight.w700,
-              color: GameColors.amber400,
-            ),
-          ),
-        ),
+      child: Text(
+        'skip'.tr(),
+        style: TactileText(
+          palette,
+        ).button.copyWith(fontSize: isSmallScreen ? 16.0 : 18.0),
       ),
     );
   }

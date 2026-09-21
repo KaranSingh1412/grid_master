@@ -6,8 +6,6 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:audio_session/audio_session.dart';
 
-import 'constants/game_constants.dart';
-import 'models/game_models.dart';
 import 'providers/game_provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/ads_provider.dart';
@@ -16,6 +14,7 @@ import 'providers/purchases_provider.dart';
 import 'providers/audio_provider.dart';
 import 'providers/theme_provider.dart';
 import 'theme/app_theme.dart';
+import 'theme/tactile_tokens.dart';
 import 'router/app_router.dart';
 
 void main() async {
@@ -36,7 +35,7 @@ void main() async {
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: GameColors.slate900,
+      systemNavigationBarColor: TactileColors.background,
       systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
@@ -167,7 +166,9 @@ class _AppInitializerState extends State<_AppInitializer> {
             return MaterialApp.router(
               title: 'GridMaster',
               debugShowCheckedModeBanner: false,
-              theme: AppTheme.darkTheme,
+              theme: AppTheme.fromPalette(
+                context.watch<ThemeProvider>().palette,
+              ),
               localizationsDelegates: context.localizationDelegates,
               supportedLocales: context.supportedLocales,
               locale: context.locale,
@@ -192,33 +193,20 @@ class AppWrapper extends StatelessWidget {
     final settingsProvider = context.watch<SettingsProvider>();
     final themeProvider = context.watch<ThemeProvider>();
     final brightness = settingsProvider.brightness / 100;
-
-    // Standard-Theme verwendet den originalen dunkelblauen Gradient
-    final isDefaultTheme =
-        themeProvider.currentThemeType == CosmeticThemeType.defaultTheme;
+    final palette = themeProvider.palette;
 
     return ColorFiltered(
       colorFilter: ColorFilter.matrix(_brightnessMatrix(brightness)),
       child: Stack(
         children: [
-          // Background gradient
+          // Ground: theme background, slightly deeper towards the bottom
           Positioned.fill(
-            child: Container(
+            child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: isDefaultTheme
-                      ? [
-                          GameColors.slate900,
-                          GameColors.blue900.withValues(alpha: 0.2),
-                          GameColors.slate900,
-                        ]
-                      : [
-                          themeProvider.backgroundColor,
-                          themeProvider.primaryColor.withValues(alpha: 0.15),
-                          themeProvider.backgroundColor,
-                        ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [palette.background, palette.backgroundDeep],
                 ),
               ),
             ),
