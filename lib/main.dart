@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -5,6 +6,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:audio_session/audio_session.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'providers/game_provider.dart';
 import 'providers/settings_provider.dart';
@@ -19,6 +21,13 @@ import 'router/app_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Fredoka ships in assets/google_fonts, so the first launch works offline
+  GoogleFonts.config.allowRuntimeFetching = false;
+  LicenseRegistry.addLicense(() async* {
+    final license = await rootBundle.loadString('assets/google_fonts/OFL.txt');
+    yield LicenseEntryWithLineBreaks(['google_fonts'], license);
+  });
   await configureAudioSession();
   await dotenv.load(fileName: ".env");
   await EasyLocalization.ensureInitialized();
