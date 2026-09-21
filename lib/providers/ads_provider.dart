@@ -79,6 +79,10 @@ class AdsProvider extends ChangeNotifier {
   bool _isRewardedAdLoaded = false;
   bool _isAdFree = false;
 
+  /// Hooks around interstitial and rewarded ads, used to pause the music
+  VoidCallback? onFullScreenAdOpened;
+  VoidCallback? onFullScreenAdClosed;
+
   int _lossCount = 0;
 
   bool get isBannerAdLoaded => _isBannerAdLoaded && !_isAdFree;
@@ -185,11 +189,13 @@ class AdsProvider extends ChangeNotifier {
                   ad.dispose();
                   _isInterstitialAdLoaded = false;
                   loadInterstitialAd();
+                  onFullScreenAdClosed?.call();
                 },
                 onAdFailedToShowFullScreenContent: (ad, error) {
                   ad.dispose();
                   _isInterstitialAdLoaded = false;
                   loadInterstitialAd();
+                  onFullScreenAdClosed?.call();
                 },
               );
         },
@@ -238,6 +244,7 @@ class AdsProvider extends ChangeNotifier {
   void showInterstitialAd() {
     if (_isAdFree) return;
     if (_isInterstitialAdLoaded && _interstitialAd != null) {
+      onFullScreenAdOpened?.call();
       _interstitialAd!.show();
       _isInterstitialAdLoaded = false;
       notifyListeners();
@@ -255,6 +262,7 @@ class AdsProvider extends ChangeNotifier {
           _isRewardedAdLoaded = false;
           loadRewardedAd();
           notifyListeners();
+          onFullScreenAdClosed?.call();
           // Call reward callback after ad is dismissed if reward was earned
           if (hasRewarded) {
             onRewarded();
@@ -265,9 +273,11 @@ class AdsProvider extends ChangeNotifier {
           _isRewardedAdLoaded = false;
           loadRewardedAd();
           notifyListeners();
+          onFullScreenAdClosed?.call();
         },
       );
 
+      onFullScreenAdOpened?.call();
       _rewardedAd!.show(
         onUserEarnedReward: (ad, reward) {
           hasRewarded = true;

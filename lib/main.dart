@@ -131,6 +131,10 @@ class _AppInitializerState extends State<_AppInitializer> {
     // Initialize ads (will skip banner/interstitial if ad-free)
     await adsProvider.initialize();
 
+    // No game music under interstitial and rewarded ads
+    adsProvider.onFullScreenAdOpened = audioProvider.pauseForAd;
+    adsProvider.onFullScreenAdClosed = audioProvider.resumeAfterAd;
+
     // Set audio provider on game provider for sound effects
     gameProvider.setAudioProvider(audioProvider);
 

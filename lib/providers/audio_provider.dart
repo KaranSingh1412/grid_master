@@ -12,6 +12,7 @@ class AudioProvider extends ChangeNotifier {
   double _musicVolume = 1.0;
   double _soundVolume = 1.0;
   bool _isMusicPlaying = false;
+  bool _pausedForAd = false;
   String _equippedSoundPackId = 'default_sound';
 
   bool get isMusicPlaying => _isMusicPlaying;
@@ -133,6 +134,29 @@ class AudioProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to stop background music: $e');
+    }
+  }
+
+  /// Silence the music while a full-screen ad plays
+  Future<void> pauseForAd() async {
+    if (!_isMusicPlaying || _pausedForAd) return;
+    _pausedForAd = true;
+    try {
+      await _musicPlayer.pause();
+    } catch (e) {
+      debugPrint('Failed to pause background music: $e');
+    }
+  }
+
+  /// Pick the music up again once the ad is closed
+  Future<void> resumeAfterAd() async {
+    if (!_pausedForAd) return;
+    _pausedForAd = false;
+    if (!_isMusicPlaying) return;
+    try {
+      await _musicPlayer.resume();
+    } catch (e) {
+      debugPrint('Failed to resume background music: $e');
     }
   }
 
