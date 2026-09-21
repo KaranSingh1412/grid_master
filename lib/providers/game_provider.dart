@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/game_models.dart';
 import '../constants/game_constants.dart';
+import '../services/review_service.dart';
 import 'audio_provider.dart';
 
 /// Main game state provider with complete game logic
@@ -187,6 +188,8 @@ class GameProvider extends ChangeNotifier {
     _gameState = GameState.showSolution;
     _deactivateDoubleBonus();
     _audioProvider?.playLoseSound();
+    // A continued round already counted on its first loss
+    if (!_hasUsedContinueThisRound) ReviewService.recordRoundFinished();
     notifyListeners();
 
     // Show solution for 2 seconds, let the board fall apart, then game over

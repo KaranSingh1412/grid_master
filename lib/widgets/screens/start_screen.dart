@@ -10,6 +10,7 @@ import '../../providers/credit_provider.dart';
 import '../../providers/audio_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../router/app_router.dart';
+import '../../services/review_service.dart';
 import '../../theme/app_theme.dart';
 import '../effects/bump.dart';
 import '../effects/count_up_text.dart';
@@ -49,6 +50,9 @@ class _StartScreenState extends State<StartScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AudioProvider>().playBackgroundMusic();
     });
+
+    // One-time rating request once the player is back from enough rounds
+    ReviewService.maybeRequestReview();
   }
 
   @override
