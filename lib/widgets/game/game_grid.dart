@@ -107,7 +107,7 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
 
   // Lose animation: what is left of the board after a lost round
   GridCollapseScene? _collapse;
-  Map<int, double> _collapseImpacts = const {};
+  double _collapseHapticAt = 0;
   bool _collapseHapticFired = false;
   late final Listenable _trayMotion = Listenable.merge([
     _motion.pulse,
@@ -271,7 +271,9 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
           ),
       ],
     );
-    _collapseImpacts = _collapse!.impacts;
+    // The first tile to break sets off the haptic; falling tiles have none
+    final impacts = _collapse!.impacts.values;
+    _collapseHapticAt = impacts.isEmpty ? 0.12 : impacts.reduce(min);
     _collapseHapticFired = false;
     _motion.collapse.forward(from: 0);
   }
@@ -282,64 +284,27 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
     _motion.collapse.value = 0;
     _collapse!.dispose();
     _collapse = null;
-    _collapseImpacts = const {};
   }
 
-  /// Debris and haptics at the moment each tile breaks
+  /// Haptic at the moment the board breaks. The pieces themselves are the
+  /// debris; loose particle chips on top only read as stray squares.
   void _onCollapseTick() {
     final scene = _collapse;
     if (scene == null || !_motion.collapse.isAnimating) return;
-    final t = _motion.collapse.value;
+    if (_collapseHapticFired) return;
+    if (_motion.collapse.value < _collapseHapticAt) return;
 
-    if (!_collapseHapticFired) {
-      final first = _collapseImpacts.isEmpty
-          ? 0.12
-          : _collapseImpacts.values.reduce(min);
-      if (t >= first) {
-        _collapseHapticFired = true;
-        switch (scene.kind) {
-          case GridCollapseKind.explode:
-            HapticFeedback.heavyImpact();
-            _particles.burst(
-              Offset(_boardSize / 2, _boardSize / 2),
-              Colors.white,
-              count: 26,
-              distance: _boardSize * 0.85,
-              size: _cellSize * 0.16,
-            );
-            break;
-          case GridCollapseKind.shatter:
-            HapticFeedback.mediumImpact();
-            break;
-          case GridCollapseKind.fallThrough:
-            HapticFeedback.lightImpact();
-            break;
-        }
-      }
-    }
-
-    if (_collapseImpacts.isEmpty) return;
-    final palette = context.read<ThemeProvider>().palette;
-    final pattern = _game.targetPattern;
-    final due = [
-      for (final entry in _collapseImpacts.entries)
-        if (t >= entry.value) entry.key,
-    ];
-    if (due.isEmpty) return;
-    _collapseImpacts = {
-      for (final entry in _collapseImpacts.entries)
-        if (!due.contains(entry.key)) entry.key: entry.value,
-    };
-    for (final i in due) {
-      if (i >= pattern.length) continue;
-      final exploding = scene.kind == GridCollapseKind.explode;
-      _particles.burst(
-        _centerOf(i),
-        exploding ? palette.toneOf(pattern[i].color).face : Colors.white,
-        count: exploding ? 7 : 5,
-        distance: _cellSize * (exploding ? 1.6 : 0.7),
-        size: _cellSize * (exploding ? 0.15 : 0.09),
-      );
+    _collapseHapticFired = true;
+    switch (scene.kind) {
+      case GridCollapseKind.explode:
+        HapticFeedback.heavyImpact();
+        break;
+      case GridCollapseKind.shatter:
+        HapticFeedback.mediumImpact();
+        break;
+      case GridCollapseKind.fallThrough:
+        HapticFeedback.lightImpact();
+        break;
     }
   }
 

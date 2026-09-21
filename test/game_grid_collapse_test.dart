@@ -8,6 +8,7 @@ import 'package:grid_master/providers/credit_provider.dart';
 import 'package:grid_master/providers/game_provider.dart';
 import 'package:grid_master/providers/theme_provider.dart';
 import 'package:grid_master/widgets/effects/grid_collapse.dart';
+import 'package:grid_master/widgets/effects/particle_field.dart';
 import 'package:grid_master/widgets/game/game_grid.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -138,6 +139,26 @@ void main() {
       for (int frame = 0; frame < 22; frame++) {
         await tester.pump(const Duration(milliseconds: 50));
         expect(tester.takeException(), isNull);
+      }
+
+      game.goToHome();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 1));
+    });
+  }
+
+  for (final id in const ['explode_lose', 'shatter_lose', 'fall_lose']) {
+    testWidgets('$id throws no loose particle chips', (tester) async {
+      final game = await pumpGrid(tester, loseAnimationId: id);
+      await lose(tester, game);
+      final particles = tester
+          .widget<ParticleField>(find.byType(ParticleField))
+          .controller;
+
+      // The flying tiles and shards are the debris
+      for (int frame = 0; frame < 22; frame++) {
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(particles.hasLive, isFalse);
       }
 
       game.goToHome();
