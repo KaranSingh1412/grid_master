@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -34,6 +35,17 @@ class PurchasesProvider extends ChangeNotifier {
       dotenv.env['REVENUECAT_API_KEY_ANDROID'] ?? '';
   static String get _apiKeyIOS => dotenv.env['REVENUECAT_API_KEY_IOS'] ?? '';
 
+  // Non-consumable purchases are mirrored into secure storage. On iOS the
+  // Keychain outlives an app delete, so ads stay off right after a reinstall
+  // and while RevenueCat is unreachable.
+  static const _removeAdsKey = 'purchase_remove_ads';
+  static const _purchaseSyncKey = 'purchase_sync_done';
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  );
+  bool _storedAdFree = false;
+
   CustomerInfo? _customerInfo;
   Offerings? _offerings;
   bool _isInitialized = false;
@@ -57,12 +69,69 @@ class PurchasesProvider extends ChangeNotifier {
         false;
   }
 
-  /// Check if user has purchased ad-free
-  bool get isAdFree {
+  bool get _hasRemoveAdsEntitlement {
     return _customerInfo?.entitlements.active.containsKey(
           Entitlements.removeAds,
         ) ??
         false;
+  }
+
+  /// Check if user has purchased ad-free (RevenueCat or the stored copy)
+  bool get isAdFree => _hasRemoveAdsEntitlement || _storedAdFree;
+
+  Future<void> _loadStoredPurchases() async {
+    try {
+      _storedAdFree = await _secureStorage.read(key: _removeAdsKey) == '1';
+    } catch (e) {
+      debugPrint('Failed to read stored purchases: $e');
+    }
+  }
+
+  Future<void> _setStoredAdFree(bool value) async {
+    if (_storedAdFree == value) return;
+    _storedAdFree = value;
+    try {
+      if (value) {
+        await _secureStorage.write(key: _removeAdsKey, value: '1');
+      } else {
+        await _secureStorage.delete(key: _removeAdsKey);
+      }
+    } catch (e) {
+      debugPrint('Failed to store purchases: $e');
+    }
+  }
+
+  /// Keep the stored copy in step with an active entitlement
+  void _mirrorEntitlements() {
+    if (_hasRemoveAdsEntitlement && !_storedAdFree) {
+      _setStoredAdFree(true);
+    }
+  }
+
+  /// A reinstall gets a new anonymous RevenueCat user without entitlements.
+  /// syncPurchases re-attaches the store receipt silently (no store prompt).
+  /// Runs when the stored copy says "bought" but RevenueCat disagrees, and
+  /// once per install (covers Android, where uninstalling wipes the storage).
+  Future<void> _reattachPurchases() async {
+    if (_hasRemoveAdsEntitlement) return;
+    try {
+      final synced = await _secureStorage.read(key: _purchaseSyncKey) == '1';
+      if (synced && !_storedAdFree) return;
+
+      await Purchases.syncPurchases();
+      _customerInfo = await Purchases.getCustomerInfo();
+      await _secureStorage.write(key: _purchaseSyncKey, value: '1');
+
+      if (_hasRemoveAdsEntitlement) {
+        await _setStoredAdFree(true);
+      } else if (_storedAdFree) {
+        // The receipt no longer contains the purchase (refund)
+        await _setStoredAdFree(false);
+      }
+    } catch (e) {
+      // Offline or store unavailable: keep what is stored, try again next start
+      debugPrint('Failed to sync purchases: $e');
+    }
   }
 
   /// Check if user has any active entitlement
@@ -82,6 +151,7 @@ class PurchasesProvider extends ChangeNotifier {
 
   /// Initialize RevenueCat SDK
   Future<void> initialize() async {
+    await _loadStoredPurchases();
     try {
       // Configure RevenueCat
       final configuration = PurchasesConfiguration(
@@ -98,11 +168,14 @@ class PurchasesProvider extends ChangeNotifier {
       // Listen for customer info updates
       Purchases.addCustomerInfoUpdateListener((customerInfo) {
         _customerInfo = customerInfo;
+        _mirrorEntitlements();
         notifyListeners();
       });
 
       // Get initial customer info and offerings
       await _refreshCustomerInfo();
+      await _reattachPurchases();
+      _mirrorEntitlements();
       await _refreshOfferings();
 
       _isInitialized = true;
@@ -127,7 +200,7 @@ class PurchasesProvider extends ChangeNotifier {
       return isAdFree;
     } catch (e) {
       debugPrint('Failed to check ad-free status: $e');
-      return false;
+      return isAdFree;
     }
   }
 
@@ -162,6 +235,7 @@ class PurchasesProvider extends ChangeNotifier {
     try {
       final result = await Purchases.purchase(PurchaseParams.package(package));
       _customerInfo = result.customerInfo;
+      _mirrorEntitlements();
       _isPurchasing = false;
       notifyListeners();
 
@@ -228,6 +302,7 @@ class PurchasesProvider extends ChangeNotifier {
 
     try {
       _customerInfo = await Purchases.restorePurchases();
+      _mirrorEntitlements();
       _isPurchasing = false;
       notifyListeners();
 
@@ -297,6 +372,7 @@ class PurchasesProvider extends ChangeNotifier {
     try {
       final result = await Purchases.logIn(userId);
       _customerInfo = result.customerInfo;
+      _mirrorEntitlements();
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to identify user: $e');
