@@ -408,15 +408,9 @@ class _StartScreenState extends State<StartScreen>
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         // x2 bonus through a rewarded ad
-        TactileIconButton(
-          icon: Icons.play_circle_filled_rounded,
-          semanticLabel: 'a11y_bonus_ad'.tr(),
-          tone: TactileColors.orange,
-          disabledTone: palette.raised.muted(palette.background),
-          iconColor: hasRewardedAd ? null : palette.textMuted,
-          size: size,
-          onTap: hasRewardedAd ? () => _activateBonusWithAd(context) : null,
-        ),
+        // x2 bonus through a rewarded ad: the key says what you get (x2
+        // points) and how (the video badge)
+        _buildBonusKey(context, palette, size, hasRewardedAd),
         const SizedBox(width: 16),
         TactileIconButton(
           icon: Icons.storefront,
@@ -427,6 +421,70 @@ class _StartScreenState extends State<StartScreen>
             context.read<AudioProvider>().playUiTapSound();
             _openShop(context);
           },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBonusKey(
+    BuildContext context,
+    TactilePalette palette,
+    double height,
+    bool enabled,
+  ) {
+    final text = TactileText(palette);
+    final tone = TactileColors.orange;
+    final muted = palette.raised.muted(palette.background);
+    final ink = enabled ? tone.ink : palette.textMuted;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        TactileButton(
+          tone: tone,
+          disabledTone: muted,
+          semanticLabel: 'a11y_bonus_ad'.tr(),
+          height: height,
+          radius: height * 0.34,
+          depth: TactileDepth.small,
+          padding: const EdgeInsets.fromLTRB(16, 0, 18, 0),
+          onTap: enabled ? () => _activateBonusWithAd(context) : null,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text('x2', style: text.number(height * 0.5, color: ink)),
+              const SizedBox(width: 8),
+              Text(
+                'points'.tr().toUpperCase(),
+                style: text.label.copyWith(
+                  fontSize: height * 0.24,
+                  color: ink,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Video badge: the boost costs one ad
+        Positioned(
+          top: -9,
+          right: -9,
+          child: IgnorePointer(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+              decoration: BoxDecoration(
+                color: enabled ? palette.cta.face : muted.face,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: palette.background, width: 2),
+              ),
+              child: Icon(
+                Icons.smart_display_rounded,
+                size: 16,
+                color: enabled ? palette.cta.ink : palette.textMuted,
+              ),
+            ),
+          ),
         ),
       ],
     );
