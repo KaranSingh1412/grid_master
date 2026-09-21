@@ -8,6 +8,7 @@ import 'package:grid_master/providers/credit_provider.dart';
 import 'package:grid_master/providers/game_provider.dart';
 import 'package:grid_master/providers/theme_provider.dart';
 import 'package:grid_master/widgets/effects/grid_collapse.dart';
+import 'package:grid_master/widgets/effects/particle_field.dart';
 import 'package:grid_master/widgets/game/game_grid.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -139,6 +140,31 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
         expect(tester.takeException(), isNull);
       }
+
+      game.goToHome();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 1));
+    });
+  }
+
+  for (final entry in const {
+    'explode_lose': true,
+    'shatter_lose': false,
+  }.entries) {
+    testWidgets('${entry.key} throws debris: ${entry.value}', (tester) async {
+      final game = await pumpGrid(tester, loseAnimationId: entry.key);
+      await lose(tester, game);
+      final particles = tester
+          .widget<ParticleField>(find.byType(ParticleField))
+          .controller;
+
+      // Glass only breaks into its shards, no loose white chips
+      bool threw = false;
+      for (int frame = 0; frame < 22; frame++) {
+        await tester.pump(const Duration(milliseconds: 50));
+        threw |= particles.hasLive;
+      }
+      expect(threw, entry.value);
 
       game.goToHome();
       await tester.pumpWidget(const SizedBox.shrink());

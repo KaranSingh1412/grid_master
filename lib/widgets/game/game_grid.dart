@@ -318,6 +318,8 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
       }
     }
 
+    // Only a blast throws debris; glass has its shards
+    if (scene.kind != GridCollapseKind.explode) return;
     if (_collapseImpacts.isEmpty) return;
     final palette = context.read<ThemeProvider>().palette;
     final pattern = _game.targetPattern;
@@ -332,13 +334,12 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
     };
     for (final i in due) {
       if (i >= pattern.length) continue;
-      final exploding = scene.kind == GridCollapseKind.explode;
       _particles.burst(
         _centerOf(i),
-        exploding ? palette.toneOf(pattern[i].color).face : Colors.white,
-        count: exploding ? 7 : 5,
-        distance: _cellSize * (exploding ? 1.6 : 0.7),
-        size: _cellSize * (exploding ? 0.15 : 0.09),
+        palette.toneOf(pattern[i].color).face,
+        count: 7,
+        distance: _cellSize * 1.6,
+        size: _cellSize * 0.15,
       );
     }
   }
