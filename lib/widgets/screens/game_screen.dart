@@ -60,9 +60,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _lastPoints = _gameProvider.score.points;
     _gameProvider.addListener(_onGameChanged);
 
-    // Play background music when entering game screen
+    // No background music during a round, it picks up again on the start screen
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AudioProvider>().playBackgroundMusic();
+      context.read<AudioProvider>().stopBackgroundMusic();
     });
   }
 
