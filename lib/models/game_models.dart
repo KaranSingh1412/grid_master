@@ -32,7 +32,15 @@ enum CosmeticThemeType {
 }
 
 /// Cosmetic unlock category
-enum CosmeticCategory { theme, gridStyle, cellAnimation, soundPack }
+enum CosmeticCategory {
+  theme,
+  gridStyle,
+  cellAnimation,
+  soundPack,
+
+  /// How a lost board falls apart
+  loseAnimation,
+}
 
 /// Represents a cosmetic item that can be unlocked
 class CosmeticItem {
@@ -58,6 +66,7 @@ class CosmeticState {
   final String equippedGridStyleId;
   final String equippedCellAnimationId;
   final String equippedSoundPackId;
+  final String equippedLoseAnimationId;
 
   const CosmeticState({
     this.unlockedCosmetics = const {
@@ -65,11 +74,13 @@ class CosmeticState {
       'default_grid',
       'default_animation',
       'default_sound',
+      'default_lose',
     },
     this.equippedThemeId = 'default_theme',
     this.equippedGridStyleId = 'default_grid',
     this.equippedCellAnimationId = 'default_animation',
     this.equippedSoundPackId = 'default_sound',
+    this.equippedLoseAnimationId = 'default_lose',
   });
 
   CosmeticState copyWith({
@@ -78,6 +89,7 @@ class CosmeticState {
     String? equippedGridStyleId,
     String? equippedCellAnimationId,
     String? equippedSoundPackId,
+    String? equippedLoseAnimationId,
   }) {
     return CosmeticState(
       unlockedCosmetics: unlockedCosmetics ?? this.unlockedCosmetics,
@@ -86,6 +98,8 @@ class CosmeticState {
       equippedCellAnimationId:
           equippedCellAnimationId ?? this.equippedCellAnimationId,
       equippedSoundPackId: equippedSoundPackId ?? this.equippedSoundPackId,
+      equippedLoseAnimationId:
+          equippedLoseAnimationId ?? this.equippedLoseAnimationId,
     );
   }
 
@@ -96,6 +110,7 @@ class CosmeticState {
       'equippedGridStyleId': equippedGridStyleId,
       'equippedCellAnimationId': equippedCellAnimationId,
       'equippedSoundPackId': equippedSoundPackId,
+      'equippedLoseAnimationId': equippedLoseAnimationId,
     };
   }
 
@@ -109,7 +124,8 @@ class CosmeticState {
               'default_animation',
               'default_sound',
             ],
-      ),
+        // Saves from before lose animations existed lack the free one
+      )..add('default_lose'),
       equippedThemeId: json['equippedThemeId'] as String? ?? 'default_theme',
       equippedGridStyleId:
           json['equippedGridStyleId'] as String? ?? 'default_grid',
@@ -117,6 +133,8 @@ class CosmeticState {
           json['equippedCellAnimationId'] as String? ?? 'default_animation',
       equippedSoundPackId:
           json['equippedSoundPackId'] as String? ?? 'default_sound',
+      equippedLoseAnimationId:
+          json['equippedLoseAnimationId'] as String? ?? 'default_lose',
     );
   }
 

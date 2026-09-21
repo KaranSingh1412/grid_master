@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:grid_master/constants/game_constants.dart';
 import 'package:grid_master/models/game_models.dart';
 import 'package:grid_master/providers/audio_provider.dart';
 import 'package:grid_master/providers/credit_provider.dart';
@@ -37,17 +38,28 @@ void main() {
         null;
   });
 
+  /// Grid with [loseAnimationId] unlocked and equipped, wired like main.dart
   Future<GameProvider> pumpGrid(
     WidgetTester tester, {
+    String loseAnimationId = 'shatter_lose',
     bool reduceMotion = false,
   }) async {
     final game = GameProvider();
+    final credits = CreditProvider();
+    await tester.pump();
+    credits.unlockCosmeticByLevel(loseAnimationId);
+    credits.equipCosmetic(
+      allCosmetics.firstWhere((c) => c.id == loseAnimationId),
+    );
+    game.setLoseAnimationEnabled(
+      GridCollapseKind.ofCosmetic(loseAnimationId) != null,
+    );
     await tester.pumpWidget(
       MultiProvider(
         providers: [
           ChangeNotifierProvider.value(value: game),
           ChangeNotifierProvider(create: (_) => AudioProvider()),
-          ChangeNotifierProvider(create: (_) => CreditProvider()),
+          ChangeNotifierProvider.value(value: credits),
           ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ],
         child: MediaQuery(
@@ -66,8 +78,12 @@ void main() {
     return game;
   }
 
-  /// Loses the first level and stops right as the board starts to collapse
-  Future<void> lose(WidgetTester tester, GameProvider game) async {
+  /// Loses the first level and stops right after the solution
+  Future<void> lose(
+    WidgetTester tester,
+    GameProvider game, {
+    GameState then = GameState.collapse,
+  }) async {
     game.startGame();
     await tester.pump();
     game.skipPreview();
@@ -76,7 +92,7 @@ void main() {
     await tester.pump();
     expect(game.gameState, GameState.showSolution);
     await tester.pump(GameProvider.solutionDuration);
-    expect(game.gameState, GameState.collapse);
+    expect(game.gameState, then);
     await tester.pump();
   }
 
@@ -106,22 +122,34 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
   });
 
-  testWidgets('successive losses never repeat the same animation', (
-    tester,
-  ) async {
-    final game = await pumpGrid(tester);
-    GridCollapseKind? last;
-    for (int round = 0; round < 4; round++) {
+  for (final entry in const {
+    'explode_lose': GridCollapseKind.explode,
+    'shatter_lose': GridCollapseKind.shatter,
+    'fall_lose': GridCollapseKind.fallThrough,
+  }.entries) {
+    testWidgets('${entry.key} plays its own animation', (tester) async {
+      final game = await pumpGrid(tester, loseAnimationId: entry.key);
       await lose(tester, game);
-      final kind = tester
-          .widget<GridCollapseLayer>(find.byType(GridCollapseLayer))
-          .scene
-          .kind;
-      expect(kind, isNot(last));
-      last = kind;
-      await tester.pump(GameProvider.collapseDuration);
-      await tester.pump();
-    }
+      final layer = tester.widget<GridCollapseLayer>(
+        find.byType(GridCollapseLayer),
+      );
+      expect(layer.scene.kind, entry.value);
+
+      for (int frame = 0; frame < 22; frame++) {
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(tester.takeException(), isNull);
+      }
+
+      game.goToHome();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 1));
+    });
+  }
+
+  testWidgets('the free default goes straight to game over', (tester) async {
+    final game = await pumpGrid(tester, loseAnimationId: 'default_lose');
+    await lose(tester, game, then: GameState.gameOver);
+    expect(find.byType(GridCollapseLayer), findsNothing);
 
     game.goToHome();
     await tester.pumpWidget(const SizedBox.shrink());

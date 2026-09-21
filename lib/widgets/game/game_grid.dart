@@ -107,7 +107,6 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
 
   // Lose animation: what is left of the board after a lost round
   GridCollapseScene? _collapse;
-  GridCollapseKind? _lastCollapseKind;
   Map<int, double> _collapseImpacts = const {};
   bool _collapseHapticFired = false;
   late final Listenable _trayMotion = Listenable.merge([
@@ -235,23 +234,17 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
     }
   }
 
-  /// The lost board falls apart, a different way than last time
+  /// The lost board falls apart the way the equipped lose animation says
   void _startCollapse() {
     final pattern = _game.targetPattern;
     if (_reduceMotion || _cellSize == 0 || pattern.isEmpty) return;
 
-    final kinds = [
-      for (final kind in GridCollapseKind.values)
-        if (kind != _lastCollapseKind) kind,
-    ];
-    final kind = kinds[_random.nextInt(kinds.length)];
-    _lastCollapseKind = kind;
+    final cosmetics = context.read<CreditProvider>().cosmeticState;
+    final kind = GridCollapseKind.ofCosmetic(cosmetics.equippedLoseAnimationId);
+    if (kind == null) return;
 
     final palette = context.read<ThemeProvider>().palette;
-    final style = GridStyleSpec.of(
-      context.read<CreditProvider>().cosmeticState.equippedGridStyleId,
-      palette,
-    );
+    final style = GridStyleSpec.of(cosmetics.equippedGridStyleId, palette);
     final size = _game.currentLevel.gridSize;
 
     _collapse?.dispose();

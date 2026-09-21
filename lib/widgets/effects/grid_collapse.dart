@@ -13,7 +13,21 @@ enum GridCollapseKind {
   shatter,
 
   /// The floor gives way and the tiles fall through the grid
-  fallThrough,
+  fallThrough;
+
+  /// Kind behind an equipped lose animation, null for the plain default
+  static GridCollapseKind? ofCosmetic(String cosmeticId) {
+    switch (cosmeticId) {
+      case 'explode_lose':
+        return GridCollapseKind.explode;
+      case 'shatter_lose':
+        return GridCollapseKind.shatter;
+      case 'fall_lose':
+        return GridCollapseKind.fallThrough;
+      default:
+        return null;
+    }
+  }
 }
 
 /// One cell as the collapse layer has to draw it

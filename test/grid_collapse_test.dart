@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:grid_master/constants/game_constants.dart';
+import 'package:grid_master/models/game_models.dart';
 import 'package:grid_master/theme/tactile_tokens.dart';
 import 'package:grid_master/widgets/effects/grid_collapse.dart';
 
@@ -36,6 +38,40 @@ GridCollapseScene _scene(GridCollapseKind kind) {
 }
 
 void main() {
+  test(
+    'every purchasable lose animation maps to a kind, the default to none',
+    () {
+      final items = allCosmetics.where(
+        (c) => c.category == CosmeticCategory.loseAnimation,
+      );
+      expect(items.length, 4);
+      for (final item in items) {
+        final kind = GridCollapseKind.ofCosmetic(item.id);
+        expect(kind == null, item.cosmeticCost == 0, reason: item.id);
+      }
+      expect(
+        items.map((c) => GridCollapseKind.ofCosmetic(c.id)).nonNulls.toSet(),
+        GridCollapseKind.values.toSet(),
+      );
+    },
+  );
+
+  test('saves from before lose animations load with the free default', () {
+    final state = CosmeticState.fromJson({
+      'unlockedCosmetics': ['default_theme', 'pulse_animation'],
+      'equippedThemeId': 'default_theme',
+    });
+    expect(state.equippedLoseAnimationId, 'default_lose');
+    expect(state.isUnlocked('default_lose'), isTrue);
+    expect(state.isUnlocked('explode_lose'), isFalse);
+
+    final equipped = state.copyWith(equippedLoseAnimationId: 'explode_lose');
+    expect(
+      CosmeticState.fromJson(equipped.toJson()).equippedLoseAnimationId,
+      'explode_lose',
+    );
+  });
+
   test('only an explosion takes the empty sockets with it', () {
     for (final kind in GridCollapseKind.values) {
       final scene = _scene(kind);
