@@ -200,11 +200,17 @@ class _StartScreenState extends State<StartScreen>
     double coinSize,
     double fontSize,
   ) {
-    return TactileSurface(
+    // The balance is a key too: tapping it opens the shop
+    return TactileButton(
       tone: palette.surface,
       radius: TactileRadii.pill,
       depth: TactileDepth.small,
       padding: const EdgeInsets.fromLTRB(10, 6, 16, 6),
+      semanticLabel: 'shop_title'.tr(),
+      onTap: () {
+        context.read<AudioProvider>().playUiTapSound();
+        _openShop(context);
+      },
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
