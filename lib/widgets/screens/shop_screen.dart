@@ -11,6 +11,8 @@ import '../../providers/purchases_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../theme/app_theme.dart';
+import '../effects/bump.dart';
+import '../effects/count_up_text.dart';
 import '../tactile/tactile.dart';
 
 /// Credit package definition
@@ -154,23 +156,30 @@ class _CoinBalance extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final credits = context.select<CreditProvider, int>((c) => c.credits);
-    return TactileSurface(
-      tone: palette.surface,
-      radius: TactileRadii.pill,
-      depth: TactileDepth.small,
-      padding: const EdgeInsets.fromLTRB(8, 4, 14, 4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Image.asset('assets/img/coin.png', width: 22, height: 22),
-          const SizedBox(width: 6),
-          Text(
-            '$credits',
-            style: TactileText(
-              palette,
-            ).number(18, color: palette.cta.face, weight: FontWeight.w600),
-          ),
-        ],
+
+    // Every change of the balance kicks the pill; gains also count up
+    return Bump(
+      trigger: credits,
+      scale: 1.22,
+      rotate: 0.06,
+      child: TactileSurface(
+        tone: palette.surface,
+        radius: TactileRadii.pill,
+        depth: TactileDepth.small,
+        padding: const EdgeInsets.fromLTRB(8, 4, 14, 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('assets/img/coin.png', width: 22, height: 22),
+            const SizedBox(width: 6),
+            CountUpText(
+              value: credits,
+              style: TactileText(
+                palette,
+              ).number(18, color: palette.cta.face, weight: FontWeight.w600),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -664,6 +673,18 @@ class _ShopCosmeticItemCard extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
+      child: Bump(
+        // Buying or equipping kicks the card
+        trigger: '$isUnlocked-$isEquipped',
+        scale: 1.05,
+        child: _buildCard(palette, text),
+      ),
+    );
+  }
+
+  Widget _buildCard(TactilePalette palette, TactileText text) {
+    return Padding(
+      padding: EdgeInsets.zero,
       child: TactileSurface(
         tone: palette.surface,
         radius: TactileRadii.lg,
@@ -779,7 +800,16 @@ class _ShopCosmeticItemCard extends StatelessWidget {
     if (isEquipped) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Icon(Icons.check_circle, color: palette.primary.face, size: 28),
+        child: Bump(
+          trigger: true,
+          animateOnAppear: true,
+          scale: 1.5,
+          child: Icon(
+            Icons.check_circle,
+            color: palette.primary.face,
+            size: 28,
+          ),
+        ),
       );
     }
 

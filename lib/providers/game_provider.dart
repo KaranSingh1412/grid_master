@@ -255,7 +255,8 @@ class GameProvider extends ChangeNotifier {
       notifyListeners();
 
       // Auto-proceed to next level
-      Future.delayed(const Duration(milliseconds: 500), () {
+      // 1200 ms leave room for the level-up celebration
+      Future.delayed(const Duration(milliseconds: 1200), () {
         _handleNextLevel();
       });
     } else {

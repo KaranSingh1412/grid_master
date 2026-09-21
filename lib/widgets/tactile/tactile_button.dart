@@ -126,6 +126,7 @@ class TactileIconButton extends StatelessWidget {
   final double size;
   final double? radius;
   final Color? iconColor;
+  final TactileTone? disabledTone;
 
   const TactileIconButton({
     super.key,
@@ -135,12 +136,14 @@ class TactileIconButton extends StatelessWidget {
     this.size = 48,
     this.radius,
     this.iconColor,
+    this.disabledTone,
   });
 
   @override
   Widget build(BuildContext context) {
     return TactileButton(
       tone: tone,
+      disabledTone: disabledTone,
       onTap: onTap,
       width: size,
       height: size,

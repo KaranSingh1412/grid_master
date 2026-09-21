@@ -13,6 +13,8 @@ import '../tactile/tactile.dart';
 import '../game/game_header.dart';
 import '../game/game_grid.dart';
 import '../game/color_palette.dart';
+import '../game/timer_bar.dart';
+import '../effects/screen_shake.dart';
 import '../overlays/feedback_overlay.dart';
 import '../overlays/pause_overlay.dart';
 
@@ -26,30 +28,28 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen>
     with SingleTickerProviderStateMixin {
-  late AnimationController _timerAnimController;
-  late Animation<double> _timerAnimation;
-  double _lastProgress = 1.0;
-  bool _isInitialized = false;
+  /// "+points" that rises from the board after a solved level
+  late final AnimationController _gainFloat = AnimationController(
+    vsync: this,
+    duration: TactileDurations.floatUp,
+    value: 1,
+  );
+  final GlobalKey<ScreenShakeState> _shakeKey = GlobalKey<ScreenShakeState>();
+
   late final GameProvider _gameProvider;
   late GameState _lastGameState;
+  int _lastPoints = 0;
+  int _gain = 0;
   Widget? _cachedAdWidget;
   BannerAd? _cachedBannerAd;
 
   @override
   void initState() {
     super.initState();
-    _timerAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 100),
-    );
-    _timerAnimation = Tween<double>(begin: 1.0, end: 1.0).animate(
-      CurvedAnimation(parent: _timerAnimController, curve: Curves.linear),
-    );
-
     _gameProvider = context.read<GameProvider>();
     _lastGameState = _gameProvider.gameState;
+    _lastPoints = _gameProvider.score.points;
     _gameProvider.addListener(_onGameChanged);
-    _gameProvider.timerListenable.addListener(_onTimerTick);
 
     // Play background music when entering game screen
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -60,44 +60,30 @@ class _GameScreenState extends State<GameScreen>
   @override
   void dispose() {
     _gameProvider.removeListener(_onGameChanged);
-    _gameProvider.timerListenable.removeListener(_onTimerTick);
-    _timerAnimController.dispose();
+    _gainFloat.dispose();
     super.dispose();
   }
 
-  void _onTimerTick() {
-    _updateTimerAnimation(_gameProvider.timerProgress);
-  }
-
-  /// Haptics on state transitions: success is a medium bump, failure a heavy one
+  /// Feedback on state transitions: success is a medium bump with the gain
+  /// flying up, failure a heavy one with a screen shake
   void _onGameChanged() {
     final state = _gameProvider.gameState;
+    final points = _gameProvider.score.points;
+
     if (state != _lastGameState) {
       if (state == GameState.levelUp) {
         HapticFeedback.mediumImpact();
+        _gain = points - _lastPoints;
+        if (_gain > 0 && !MediaQuery.of(context).disableAnimations) {
+          _gainFloat.forward(from: 0);
+        }
       } else if (state == GameState.showSolution) {
         HapticFeedback.heavyImpact();
+        _shakeKey.currentState?.shake();
       }
       _lastGameState = state;
     }
-    _updateTimerAnimation(_gameProvider.timerProgress);
-  }
-
-  void _updateTimerAnimation(double newProgress) {
-    if (!_isInitialized) {
-      _lastProgress = newProgress;
-      _isInitialized = true;
-      return;
-    }
-
-    if ((newProgress - _lastProgress).abs() > 0.001) {
-      _timerAnimation = Tween<double>(begin: _lastProgress, end: newProgress)
-          .animate(
-            CurvedAnimation(parent: _timerAnimController, curve: Curves.linear),
-          );
-      _timerAnimController.forward(from: 0);
-      _lastProgress = newProgress;
-    }
+    _lastPoints = points;
   }
 
   @override
@@ -105,6 +91,11 @@ class _GameScreenState extends State<GameScreen>
     final gameProvider = context.watch<GameProvider>();
     final palette = context.select<ThemeProvider, TactilePalette>(
       (t) => t.palette,
+    );
+
+    final insets = MediaQuery.of(context).padding;
+    final bannerVisible = context.select<AdsProvider, bool>(
+      (a) => a.isGameBannerAdLoaded && a.gameBannerAd != null,
     );
 
     return Scaffold(
@@ -121,64 +112,96 @@ class _GameScreenState extends State<GameScreen>
               children: [
                 Expanded(
                   child: Stack(
+                    clipBehavior: Clip.none,
                     children: [
                       // Main game content
-                      Column(
-                        children: [
-                          // Header
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: GameHeader(isSmallScreen: isSmallScreen),
-                          ),
-
-                          SizedBox(height: spacing * 0.5),
-
-                          // Timer progress bar
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: _buildTimerBar(gameProvider, palette),
-                          ),
-
-                          SizedBox(height: spacing * 0.5),
-
-                          // Info row with label, timer, and buttons
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: _buildInfoRow(
-                              context,
-                              gameProvider,
-                              palette,
-                              isSmallScreen,
+                      ScreenShake(
+                        key: _shakeKey,
+                        child: Column(
+                          children: [
+                            // Header
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              child: GameHeader(isSmallScreen: isSmallScreen),
                             ),
-                          ),
 
-                          SizedBox(height: spacing),
+                            SizedBox(height: spacing * 0.5),
 
-                          // Grid
-                          Flexible(
-                            child: GameGrid(isSmallScreen: isSmallScreen),
-                          ),
-
-                          SizedBox(height: spacing),
-
-                          // Controls area
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: _buildControls(
-                              context,
-                              gameProvider,
-                              palette,
-                              isSmallScreen,
+                            // Timer progress bar
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: TimerBar(palette: palette),
                             ),
-                          ),
-                        ],
+
+                            SizedBox(height: spacing * 0.5),
+
+                            // Info row with label, timer, and buttons
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: _buildInfoRow(
+                                context,
+                                gameProvider,
+                                palette,
+                                isSmallScreen,
+                              ),
+                            ),
+
+                            SizedBox(height: spacing),
+
+                            // Grid
+                            Flexible(
+                              child: Stack(
+                                alignment: Alignment.topCenter,
+                                clipBehavior: Clip.none,
+                                children: [
+                                  GameGrid(isSmallScreen: isSmallScreen),
+                                  _buildGainFloat(palette),
+                                ],
+                              ),
+                            ),
+
+                            SizedBox(height: spacing),
+
+                            // Controls area
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: _buildControls(
+                                context,
+                                gameProvider,
+                                palette,
+                                isSmallScreen,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
 
-                      // Overlays
+                      // Overlays reach under the status bar, and down to the
+                      // screen edge only while no banner sits there
                       if (gameProvider.isPaused)
-                        const Positioned.fill(child: PauseOverlay()),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          top: -insets.top,
+                          bottom: bannerVisible ? 0 : -(insets.bottom + 12),
+                          child: const PauseOverlay(),
+                        ),
                       if (gameProvider.isGameOver)
-                        const Positioned.fill(child: FeedbackOverlay()),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          top: -insets.top,
+                          bottom: bannerVisible ? 0 : -(insets.bottom + 12),
+                          child: const FeedbackOverlay(),
+                        ),
                     ],
                   ),
                 ),
@@ -229,40 +252,41 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
-  Widget _buildTimerBar(GameProvider gameProvider, TactilePalette palette) {
-    final fill = gameProvider.isPreview ? palette.cta : palette.primary;
+  Widget _buildGainFloat(TactilePalette palette) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _gainFloat,
+        builder: (context, _) {
+          final t = _gainFloat.value;
+          if (t >= 1 || _gain <= 0) return const SizedBox.shrink();
+          final rise = Curves.easeOutCubic.transform(t);
+          final fade = t < 0.65 ? 1.0 : 1 - (t - 0.65) / 0.35;
+          final pop = TactileCurves.popScale.transform((t * 2.4).clamp(0, 1));
 
-    return AnimatedBuilder(
-      animation: _timerAnimation,
-      builder: (context, child) {
-        return TactileWell(
-          color: palette.backgroundDeep,
-          radius: TactileRadii.pill,
-          padding: const EdgeInsets.all(3),
-          child: SizedBox(
-            height: 10,
-            child: FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: _timerAnimation.value.clamp(0.0, 1.0),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(TactileRadii.pill),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color.lerp(fill.face, Colors.white, 0.2)!,
-                      fill.face,
-                      fill.lip,
-                    ],
-                    stops: const [0.0, 0.55, 1.0],
-                  ),
+          return Transform.translate(
+            offset: Offset(0, 70 - 90 * rise),
+            child: Opacity(
+              opacity: fade.clamp(0.0, 1.0),
+              child: Transform.scale(
+                scale: pop,
+                child: Text(
+                  '+$_gain',
+                  style: TactileText(palette)
+                      .number(44, color: palette.cta.face)
+                      .copyWith(
+                        shadows: [
+                          Shadow(
+                            color: palette.cta.lip,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
                 ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -301,13 +325,18 @@ class _GameScreenState extends State<GameScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  labelText,
-                  style: text.label.copyWith(
-                    fontSize: isSmallScreen ? 10.0 : 12.0,
-                    color: isShowSolution
-                        ? palette.danger.face
-                        : palette.textSecondary,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    labelText,
+                    maxLines: 1,
+                    style: text.label.copyWith(
+                      fontSize: isSmallScreen ? 10.0 : 12.0,
+                      color: isShowSolution
+                          ? palette.danger.face
+                          : palette.textSecondary,
+                    ),
                   ),
                 ),
                 SizedBox(height: isSmallScreen ? 1.0 : 2.0),

@@ -14,6 +14,30 @@ class AppRoutes {
   static const String settingsInGame = '/settings-ingame';
 }
 
+/// Fade plus a small scale-up, used for pages that open on top of a screen
+Widget _scaleFadeTransition(
+  BuildContext context,
+  Animation<double> animation,
+  Animation<double> secondaryAnimation,
+  Widget child,
+) {
+  if (MediaQuery.of(context).disableAnimations) {
+    return FadeTransition(opacity: animation, child: child);
+  }
+  final curved = CurvedAnimation(
+    parent: animation,
+    curve: Curves.easeOutCubic,
+    reverseCurve: Curves.easeIn,
+  );
+  return FadeTransition(
+    opacity: curved,
+    child: ScaleTransition(
+      scale: Tween<double>(begin: 0.94, end: 1).animate(curved),
+      child: child,
+    ),
+  );
+}
+
 /// GoRouter Konfiguration
 final GoRouter appRouter = GoRouter(
   initialLocation: AppRoutes.home,
@@ -45,9 +69,7 @@ final GoRouter appRouter = GoRouter(
       pageBuilder: (context, state) => CustomTransitionPage(
         key: state.pageKey,
         child: const ShopScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
+        transitionsBuilder: _scaleFadeTransition,
         transitionDuration: const Duration(milliseconds: 300),
       ),
     ),
@@ -56,9 +78,7 @@ final GoRouter appRouter = GoRouter(
       pageBuilder: (context, state) => CustomTransitionPage(
         key: state.pageKey,
         child: const SettingsScreen(isFromStartScreen: true),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
+        transitionsBuilder: _scaleFadeTransition,
         transitionDuration: const Duration(milliseconds: 300),
       ),
     ),
@@ -67,9 +87,7 @@ final GoRouter appRouter = GoRouter(
       pageBuilder: (context, state) => CustomTransitionPage(
         key: state.pageKey,
         child: const SettingsScreen(isFromStartScreen: false),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
+        transitionsBuilder: _scaleFadeTransition,
         transitionDuration: const Duration(milliseconds: 300),
       ),
     ),

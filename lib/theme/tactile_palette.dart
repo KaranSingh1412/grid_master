@@ -102,7 +102,8 @@ class TactilePalette {
       backgroundDeep: Color.lerp(c.background, Colors.black, 0.32)!,
       surface: TactileTone.from(c.surface),
       raised: TactileTone.from(Color.lerp(c.surface, c.textPrimary, 0.12)!),
-      well: TactileTone.from(c.surface),
+      // Slightly lifted so empty tiles stay readable on very dark themes
+      well: TactileTone.from(Color.lerp(c.surface, c.textPrimary, 0.07)!),
       primary: TactileTone.from(c.primary),
       secondary: TactileTone.from(c.secondary),
       cta: TactileColors.cta,

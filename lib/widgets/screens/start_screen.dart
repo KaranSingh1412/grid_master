@@ -11,6 +11,7 @@ import '../../providers/audio_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
+import '../effects/count_up_text.dart';
 import '../tactile/tactile.dart';
 
 /// Start screen: wordmark, a 2x2 tile board with the play key, shop and bonus
@@ -193,8 +194,8 @@ class _StartScreenState extends State<StartScreen>
           Image.asset('assets/img/coin.png', width: coinSize, height: coinSize),
           const SizedBox(width: 8),
           creditProvider.isLoaded
-              ? Text(
-                  creditProvider.credits.toString(),
+              ? CountUpText(
+                  value: creditProvider.credits,
                   style: TactileText(palette).number(
                     fontSize,
                     color: palette.cta.face,
@@ -405,15 +406,13 @@ class _StartScreenState extends State<StartScreen>
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         // x2 bonus through a rewarded ad
-        AnimatedOpacity(
-          duration: const Duration(milliseconds: 200),
-          opacity: hasRewardedAd ? 1.0 : 0.45,
-          child: TactileIconButton(
-            icon: Icons.play_circle_filled_rounded,
-            tone: TactileColors.orange,
-            size: size,
-            onTap: hasRewardedAd ? () => _activateBonusWithAd(context) : null,
-          ),
+        TactileIconButton(
+          icon: Icons.play_circle_filled_rounded,
+          tone: TactileColors.orange,
+          disabledTone: palette.raised.muted(palette.background),
+          iconColor: hasRewardedAd ? null : palette.textMuted,
+          size: size,
+          onTap: hasRewardedAd ? () => _activateBonusWithAd(context) : null,
         ),
         const SizedBox(width: 16),
         TactileIconButton(

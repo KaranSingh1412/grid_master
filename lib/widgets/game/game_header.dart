@@ -5,6 +5,8 @@ import '../../providers/game_provider.dart';
 import '../../providers/credit_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../theme/app_theme.dart';
+import '../effects/bump.dart';
+import '../effects/count_up_text.dart';
 import '../tactile/tactile.dart';
 
 /// Game header with level, score, and combo display
@@ -18,10 +20,6 @@ class GameHeader extends StatefulWidget {
 }
 
 class _GameHeaderState extends State<GameHeader> with TickerProviderStateMixin {
-  late final AnimationController _scoreBump = AnimationController(
-    vsync: this,
-    duration: TactileDurations.bump,
-  );
   late final AnimationController _creditBump = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 600),
@@ -47,7 +45,6 @@ class _GameHeaderState extends State<GameHeader> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    _scoreBump.dispose();
     _creditBump.dispose();
     _bonusPulse.dispose();
     super.dispose();
@@ -77,7 +74,6 @@ class _GameHeaderState extends State<GameHeader> with TickerProviderStateMixin {
 
     // Trigger animation when score changes
     if (score.points != _previousScore && score.points > _previousScore) {
-      if (!reduceMotion) _scoreBump.forward(from: 0);
       // Check and award credits - schedule after build to avoid setState during build
       final pointsToCheck = score.points;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -137,9 +133,16 @@ class _GameHeaderState extends State<GameHeader> with TickerProviderStateMixin {
                     crossAxisAlignment: CrossAxisAlignment.baseline,
                     textBaseline: TextBaseline.alphabetic,
                     children: [
-                      Text(
-                        '${'lvl'.tr()} ${score.level}',
-                        style: text.number(widget.isSmallScreen ? 24.0 : 30.0),
+                      Bump(
+                        trigger: score.level,
+                        scale: 1.3,
+                        alignment: Alignment.bottomLeft,
+                        child: Text(
+                          '${'lvl'.tr()} ${score.level}',
+                          style: text.number(
+                            widget.isSmallScreen ? 24.0 : 30.0,
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -167,19 +170,13 @@ class _GameHeaderState extends State<GameHeader> with TickerProviderStateMixin {
                     ],
                   ),
                   const SizedBox(height: 2),
-                  AnimatedBuilder(
-                    animation: _scoreBump,
-                    builder: (context, child) {
-                      final t = _scoreBump.isAnimating ? _scoreBump.value : 1.0;
-                      final scale = 1.0 + 0.25 * (1 - (2 * t - 1).abs());
-                      return Transform.scale(
-                        scale: scale,
-                        alignment: Alignment.centerRight,
-                        child: child,
-                      );
-                    },
-                    child: Text(
-                      _formatNumber(score.points),
+                  Bump(
+                    trigger: score.points,
+                    scale: 1.18,
+                    alignment: Alignment.centerRight,
+                    child: CountUpText(
+                      value: score.points,
+                      format: _formatNumber,
                       style: text.number(
                         30,
                         color: hasDoubleBonus
@@ -328,6 +325,17 @@ class _GameHeaderState extends State<GameHeader> with TickerProviderStateMixin {
 
   Widget _buildComboBadge(TactilePalette palette, TactileText text, int combo) {
     final tone = TactileColors.orange;
+    return Bump(
+      trigger: combo,
+      scale: 1.35,
+      rotate: 0.16,
+      alignment: Alignment.centerRight,
+      animateOnAppear: true,
+      child: _comboRow(text, tone, combo),
+    );
+  }
+
+  Widget _comboRow(TactileText text, TactileTone tone, int combo) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [

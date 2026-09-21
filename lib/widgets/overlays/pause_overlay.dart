@@ -6,6 +6,7 @@ import '../../providers/game_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
+import '../effects/overlay_entrance.dart';
 import '../tactile/tactile.dart';
 import 'overlay_parts.dart';
 
@@ -26,8 +27,8 @@ class PauseOverlay extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return ColoredBox(
-      color: palette.scrim,
+    return OverlayEntrance(
+      scrim: palette.scrim,
       child: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
