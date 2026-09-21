@@ -147,24 +147,19 @@ void main() {
     });
   }
 
-  for (final entry in const {
-    'explode_lose': true,
-    'shatter_lose': false,
-  }.entries) {
-    testWidgets('${entry.key} throws debris: ${entry.value}', (tester) async {
-      final game = await pumpGrid(tester, loseAnimationId: entry.key);
+  for (final id in const ['explode_lose', 'shatter_lose', 'fall_lose']) {
+    testWidgets('$id throws no loose particle chips', (tester) async {
+      final game = await pumpGrid(tester, loseAnimationId: id);
       await lose(tester, game);
       final particles = tester
           .widget<ParticleField>(find.byType(ParticleField))
           .controller;
 
-      // Glass only breaks into its shards, no loose white chips
-      bool threw = false;
+      // The flying tiles and shards are the debris
       for (int frame = 0; frame < 22; frame++) {
         await tester.pump(const Duration(milliseconds: 50));
-        threw |= particles.hasLive;
+        expect(particles.hasLive, isFalse);
       }
-      expect(threw, entry.value);
 
       game.goToHome();
       await tester.pumpWidget(const SizedBox.shrink());
