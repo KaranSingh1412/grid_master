@@ -128,5 +128,11 @@
   "shop_remove_ads_success": "Ads removed successfully!",
   "shop_buy": "Buy",
   "shop_product_not_available": "Product not available. Please try again later.",
-  "shop_purchase_cancelled": "Purchase cancelled"
+  "shop_purchase_cancelled": "Purchase cancelled",
+  "a11y_hint": "Hint",
+  "a11y_bonus_ad": "Double points by watching an ad",
+  "a11y_play": "Start game",
+  "a11y_back": "Back",
+  "cue_memorize": "Memorize!",
+  "cue_rebuild": "Go!"
 }

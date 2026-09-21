@@ -27,88 +27,90 @@ class SettingsScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: palette.background,
-      appBar: AppBar(
-        backgroundColor: palette.background,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_rounded, color: palette.textPrimary),
-          onPressed: () {
-            context.read<AudioProvider>().playUiTapSound();
-            context.pop();
-          },
-        ),
-        title: Text('settings'.tr(), style: text.heading),
-      ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSlider(
-                palette,
-                label: 'brightness'.tr(),
-                valueLabel: '${settingsProvider.brightness}%',
-                value: settingsProvider.brightness.toDouble(),
-                min: 30,
-                max: 150,
-                onChanged: (value) =>
-                    settingsProvider.setBrightness(value.round()),
-              ),
+        child: Column(
+          children: [
+            TactileTopBar(
+              palette: palette,
+              title: 'settings'.tr(),
+              backLabel: 'a11y_back'.tr(),
+              onBack: () {
+                context.read<AudioProvider>().playUiTapSound();
+                context.pop();
+              },
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSlider(
+                      palette,
+                      label: 'brightness'.tr(),
+                      valueLabel: '${settingsProvider.brightness}%',
+                      value: settingsProvider.brightness.toDouble(),
+                      min: 30,
+                      max: 150,
+                      onChanged: (value) =>
+                          settingsProvider.setBrightness(value.round()),
+                    ),
 
-              const SizedBox(height: 14),
+                    const SizedBox(height: 14),
 
-              _buildSlider(
-                palette,
-                label: 'music_volume'.tr(),
-                valueLabel:
-                    '${(settingsProvider.musicVolume * 100).toStringAsFixed(0)}%',
-                value: settingsProvider.musicVolume,
-                min: 0.0,
-                max: 1.0,
-                divisions: 10,
-                onChanged: (value) {
-                  settingsProvider.setMusicVolume(value);
-                  context.read<AudioProvider>().setMusicVolume(value);
-                },
-              ),
+                    _buildSlider(
+                      palette,
+                      label: 'music_volume'.tr(),
+                      valueLabel:
+                          '${(settingsProvider.musicVolume * 100).toStringAsFixed(0)}%',
+                      value: settingsProvider.musicVolume,
+                      min: 0.0,
+                      max: 1.0,
+                      divisions: 10,
+                      onChanged: (value) {
+                        settingsProvider.setMusicVolume(value);
+                        context.read<AudioProvider>().setMusicVolume(value);
+                      },
+                    ),
 
-              const SizedBox(height: 14),
+                    const SizedBox(height: 14),
 
-              _buildSlider(
-                palette,
-                label: 'sound_volume'.tr(),
-                valueLabel:
-                    '${(settingsProvider.soundVolume * 100).toStringAsFixed(0)}%',
-                value: settingsProvider.soundVolume,
-                min: 0.0,
-                max: 1.0,
-                divisions: 10,
-                onChanged: (value) {
-                  settingsProvider.setSoundVolume(value);
-                  context.read<AudioProvider>().setSoundVolume(value);
-                },
-              ),
+                    _buildSlider(
+                      palette,
+                      label: 'sound_volume'.tr(),
+                      valueLabel:
+                          '${(settingsProvider.soundVolume * 100).toStringAsFixed(0)}%',
+                      value: settingsProvider.soundVolume,
+                      min: 0.0,
+                      max: 1.0,
+                      divisions: 10,
+                      onChanged: (value) {
+                        settingsProvider.setSoundVolume(value);
+                        context.read<AudioProvider>().setSoundVolume(value);
+                      },
+                    ),
 
-              // End game button (only when not from start screen)
-              if (!isFromStartScreen) ...[
-                const SizedBox(height: 28),
-                TactileButton(
-                  tone: palette.danger,
-                  expand: true,
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  onTap: () {
-                    context.read<AudioProvider>().playUiTapSound();
-                    context.read<AudioProvider>().playBackgroundMusic();
-                    gameProvider.goToHome();
-                    context.go(AppRoutes.home);
-                  },
-                  child: Text('end_game'.tr(), style: text.button),
+                    // End game button (only when not from start screen)
+                    if (!isFromStartScreen) ...[
+                      const SizedBox(height: 28),
+                      TactileButton(
+                        tone: palette.danger,
+                        expand: true,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        onTap: () {
+                          context.read<AudioProvider>().playUiTapSound();
+                          context.read<AudioProvider>().playBackgroundMusic();
+                          gameProvider.goToHome();
+                          context.go(AppRoutes.home);
+                        },
+                        child: Text('end_game'.tr(), style: text.button),
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-            ],
-          ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -154,10 +156,12 @@ class SettingsScreen extends StatelessWidget {
               overlayColor: palette.primary.face.withValues(alpha: 0.18),
               activeTickMarkColor: Colors.transparent,
               inactiveTickMarkColor: Colors.transparent,
-              trackHeight: 12,
-              thumbShape: const RoundSliderThumbShape(
-                enabledThumbRadius: 13,
-                elevation: 3,
+              trackHeight: 14,
+              thumbShape: TactileSliderThumbShape(
+                tone: TactileTone(
+                  palette.textPrimary,
+                  Color.lerp(palette.textPrimary, palette.background, 0.55)!,
+                ),
               ),
               overlayShape: const RoundSliderOverlayShape(overlayRadius: 22),
             ),

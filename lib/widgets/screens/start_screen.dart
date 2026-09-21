@@ -142,6 +142,7 @@ class _StartScreenState extends State<StartScreen>
                       _buildCreditsDisplay(palette, coinSize: coinSize),
                       TactileIconButton(
                         icon: Icons.settings,
+                        semanticLabel: 'settings'.tr(),
                         tone: palette.raised,
                         iconColor: palette.textPrimary,
                         size: buttonSize,
@@ -385,6 +386,7 @@ class _StartScreenState extends State<StartScreen>
         width: keySize,
         height: keySize,
         radius: keySize / 2,
+        semanticLabel: 'a11y_play'.tr(),
         softShadow: true,
         padding: EdgeInsets.zero,
         child: Icon(Icons.play_arrow_rounded, size: keySize * 0.62),
@@ -408,6 +410,7 @@ class _StartScreenState extends State<StartScreen>
         // x2 bonus through a rewarded ad
         TactileIconButton(
           icon: Icons.play_circle_filled_rounded,
+          semanticLabel: 'a11y_bonus_ad'.tr(),
           tone: TactileColors.orange,
           disabledTone: palette.raised.muted(palette.background),
           iconColor: hasRewardedAd ? null : palette.textMuted,
@@ -417,7 +420,8 @@ class _StartScreenState extends State<StartScreen>
         const SizedBox(width: 16),
         TactileIconButton(
           icon: Icons.storefront,
-          tone: palette.hint,
+          semanticLabel: 'shop_title'.tr(),
+          tone: palette.gameTones[4],
           size: size,
           onTap: () {
             context.read<AudioProvider>().playUiTapSound();

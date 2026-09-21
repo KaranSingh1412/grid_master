@@ -68,8 +68,9 @@ class TactilePalette {
   static const TactilePalette standard = TactilePalette(
     background: TactileColors.background,
     backgroundDeep: TactileColors.backgroundDeep,
-    surface: TactileColors.well,
-    raised: TactileTone(Color(0xFF3A4074), Color(0xFF272C57)),
+    surface: TactileColors.panel,
+    // Lip darker than the panel it sits on, otherwise the key reads flat
+    raised: TactileTone(Color(0xFF3D4379), Color(0xFF191D3C)),
     well: TactileColors.well,
     primary: TactileColors.green,
     secondary: TactileColors.blue,
@@ -99,9 +100,15 @@ class TactilePalette {
 
     return TactilePalette(
       background: c.background,
-      backgroundDeep: Color.lerp(c.background, Colors.black, 0.32)!,
-      surface: TactileTone.from(c.surface),
-      raised: TactileTone.from(Color.lerp(c.surface, c.textPrimary, 0.12)!),
+      backgroundDeep: Color.lerp(c.background, Colors.black, 0.4)!,
+      surface: TactileTone(
+        c.surface,
+        Color.lerp(c.background, Colors.black, 0.45)!,
+      ),
+      raised: TactileTone(
+        Color.lerp(c.surface, c.textPrimary, 0.14)!,
+        Color.lerp(c.surface, Colors.black, 0.42)!,
+      ),
       // Slightly lifted so empty tiles stay readable on very dark themes
       well: TactileTone.from(Color.lerp(c.surface, c.textPrimary, 0.07)!),
       primary: TactileTone.from(c.primary),

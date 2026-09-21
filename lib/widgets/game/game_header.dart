@@ -103,17 +103,24 @@ class _GameHeaderState extends State<GameHeader> with TickerProviderStateMixin {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildCreditsPill(palette, text, currentCredits),
-              if (gameProvider.isPreview || gameProvider.isRebuild)
-                Flexible(
+              // The slot stays reserved so the board never jumps when the
+              // badge leaves (level up, solution)
+              Flexible(
+                child: Visibility(
+                  visible: gameProvider.isPreview || gameProvider.isRebuild,
+                  maintainSize: true,
+                  maintainAnimation: true,
+                  maintainState: true,
                   child: Padding(
                     padding: const EdgeInsets.only(left: 8),
                     child: _buildPhaseBadge(
                       palette,
                       text,
-                      isPreview: gameProvider.isPreview,
+                      isPreview: !gameProvider.isRebuild,
                     ),
                   ),
                 ),
+              ),
             ],
           ),
           SizedBox(height: spacing),

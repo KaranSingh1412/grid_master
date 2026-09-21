@@ -206,7 +206,14 @@ class AppWrapper extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [palette.background, palette.backgroundDeep],
+                  colors: [
+                    palette.background,
+                    Color.lerp(
+                      palette.background,
+                      palette.backgroundDeep,
+                      0.3,
+                    )!,
+                  ],
                 ),
               ),
             ),

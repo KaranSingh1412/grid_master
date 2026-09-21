@@ -154,7 +154,13 @@ class TactileTone {
 /// Default theme colors (face / lip)
 class TactileColors {
   static const Color background = Color(0xFF1B1F3B);
-  static const Color backgroundDeep = Color(0xFF14172E);
+  static const Color backgroundDeep = Color(0xFF101327);
+
+  /// Panel on the ground: the lip has to be darker than the ground itself
+  static const TactileTone panel = TactileTone(
+    Color(0xFF2A2F57),
+    Color(0xFF11142B),
+  );
 
   static const TactileTone well = TactileTone(
     Color(0xFF2A2F57),

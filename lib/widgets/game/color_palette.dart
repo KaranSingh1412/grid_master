@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../constants/game_constants.dart';
+import '../../models/game_models.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/credit_provider.dart';
 import '../../providers/theme_provider.dart';
@@ -31,6 +33,43 @@ class ColorPalette extends StatelessWidget {
     final canBuyHint =
         creditProvider.credits >= 5 && creditProvider.canBuyHintToday;
 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Keys shrink so five colors plus the hint key always fit the row
+        final sidePadding = isSmallScreen ? 8.0 : 12.0;
+        final keys = availableColors.length + 1;
+        final gaps = keys * buttonSpacing * 2 + buttonSpacing * 2;
+        final fit = (constraints.maxWidth - sidePadding * 2 - gaps) / keys;
+        final keySize = fit.clamp(36.0, isSmallScreen ? 44.0 : 52.0);
+
+        return _buildTray(
+          palette,
+          gameProvider,
+          creditProvider,
+          availableColors,
+          selectedColor,
+          buttonSpacing,
+          keySize,
+          hints,
+          hasFreeHints,
+          canBuyHint,
+        );
+      },
+    );
+  }
+
+  Widget _buildTray(
+    TactilePalette palette,
+    GameProvider gameProvider,
+    CreditProvider creditProvider,
+    List<ColorType> availableColors,
+    ColorType selectedColor,
+    double buttonSpacing,
+    double keySize,
+    int hints,
+    bool hasFreeHints,
+    bool canBuyHint,
+  ) {
     return TactileSurface(
       tone: palette.surface,
       radius: TactileRadii.xl,
@@ -54,7 +93,7 @@ class ColorPalette extends StatelessWidget {
                 ringColor: palette.textPrimary,
                 isSelected: selectedColor == color,
                 onTap: () => gameProvider.selectColor(color),
-                size: isSmallScreen ? 44.0 : 52.0,
+                size: keySize,
               ),
             );
           }),
@@ -66,7 +105,7 @@ class ColorPalette extends StatelessWidget {
             hints: hints,
             hasFreeHints: hasFreeHints,
             canBuyHint: canBuyHint,
-            size: isSmallScreen ? 44.0 : 52.0,
+            size: keySize,
             onTap: () {
               if (hasFreeHints) {
                 gameProvider.useHint();
@@ -117,7 +156,7 @@ class _PaletteKey extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             TactileButton(
-              tone: isSelected ? tone : _dimmed(tone),
+              tone: tone,
               onTap: onTap,
               width: size,
               height: size,
@@ -145,11 +184,6 @@ class _PaletteKey extends StatelessWidget {
       ),
     );
   }
-
-  TactileTone _dimmed(TactileTone t) => TactileTone(
-    Color.lerp(t.face, Colors.black, 0.22)!,
-    Color.lerp(t.lip, Colors.black, 0.22)!,
-  );
 }
 
 class _HintKey extends StatelessWidget {
@@ -172,7 +206,8 @@ class _HintKey extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isEnabled = hasFreeHints || canBuyHint;
-    final tone = hasFreeHints ? palette.hint : palette.cta;
+    // Neutral key: it must never read as one of the pattern colors
+    final tone = hasFreeHints ? palette.raised : palette.cta;
     final text = TactileText(palette);
 
     return Stack(
@@ -186,10 +221,13 @@ class _HintKey extends StatelessWidget {
           height: size,
           radius: size * 0.32,
           padding: EdgeInsets.zero,
+          semanticLabel: 'a11y_hint'.tr(),
           child: Icon(
             Icons.lightbulb,
             size: size * 0.48,
-            color: isEnabled ? null : palette.textMuted,
+            color: !isEnabled
+                ? palette.textMuted
+                : (hasFreeHints ? palette.cta.face : null),
           ),
         ),
 

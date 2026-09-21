@@ -91,57 +91,54 @@ class _ShopScreenState extends State<ShopScreen>
     final palette = context.select<ThemeProvider, TactilePalette>(
       (t) => t.palette,
     );
-    final text = TactileText(palette);
 
     return Scaffold(
       backgroundColor: palette.background,
-      appBar: AppBar(
-        backgroundColor: palette.background,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_rounded, color: palette.textPrimary),
-          onPressed: () => context.pop(),
-        ),
-        title: Text('shop_title'.tr(), style: text.heading),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(child: _CoinBalance(palette: palette)),
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          dividerColor: palette.surface.lip,
-          indicatorColor: palette.accent,
-          indicatorWeight: 4,
-          labelColor: palette.textPrimary,
-          unselectedLabelColor: palette.textSecondary,
-          labelStyle: text.button.copyWith(fontSize: 15),
-          unselectedLabelStyle: text.button.copyWith(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-          ),
-          tabs: [
-            Tab(text: 'shop_coins_tab'.tr()),
-            Tab(text: 'cosmetics_tab_themes'.tr()),
-            Tab(text: 'cosmetics_tab_grids'.tr()),
-            Tab(text: 'cosmetics_tab_animations'.tr()),
-            Tab(text: 'cosmetics_tab_sounds'.tr()),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            TactileTopBar(
+              palette: palette,
+              title: 'shop_title'.tr(),
+              backLabel: 'a11y_back'.tr(),
+              onBack: () => context.pop(),
+              trailing: _CoinBalance(palette: palette),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TactileTabs(
+                palette: palette,
+                controller: _tabController,
+                labels: [
+                  'shop_coins_tab'.tr(),
+                  'cosmetics_tab_themes'.tr(),
+                  'cosmetics_tab_grids'.tr(),
+                  'cosmetics_tab_animations'.tr(),
+                  'cosmetics_tab_sounds'.tr(),
+                ],
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _ShopCoinsTab(),
+                  _ShopCosmeticCategoryList(category: CosmeticCategory.theme),
+                  _ShopCosmeticCategoryList(
+                    category: CosmeticCategory.gridStyle,
+                  ),
+                  _ShopCosmeticCategoryList(
+                    category: CosmeticCategory.cellAnimation,
+                  ),
+                  _ShopCosmeticCategoryList(
+                    category: CosmeticCategory.soundPack,
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _ShopCoinsTab(),
-          _ShopCosmeticCategoryList(category: CosmeticCategory.theme),
-          _ShopCosmeticCategoryList(category: CosmeticCategory.gridStyle),
-          _ShopCosmeticCategoryList(category: CosmeticCategory.cellAnimation),
-          _ShopCosmeticCategoryList(category: CosmeticCategory.soundPack),
-        ],
       ),
     );
   }

@@ -127,5 +127,11 @@
   "shop_remove_ads_success": "Werbung erfolgreich entfernt!",
   "shop_buy": "Kaufen",
   "shop_product_not_available": "Produkt nicht verfügbar. Bitte versuche es später erneut.",
-  "shop_purchase_cancelled": "Kauf abgebrochen"
+  "shop_purchase_cancelled": "Kauf abgebrochen",
+  "a11y_hint": "Hinweis",
+  "a11y_bonus_ad": "Doppelte Punkte per Werbevideo",
+  "a11y_play": "Spiel starten",
+  "a11y_back": "Zurück",
+  "cue_memorize": "Merken!",
+  "cue_rebuild": "Los!"
 }

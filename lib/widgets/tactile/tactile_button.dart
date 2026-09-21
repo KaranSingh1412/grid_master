@@ -21,6 +21,9 @@ class TactileButton extends StatefulWidget {
   /// Tone used while [onTap] is null
   final TactileTone? disabledTone;
 
+  /// Spoken name for keys without text
+  final String? semanticLabel;
+
   const TactileButton({
     super.key,
     required this.tone,
@@ -35,6 +38,7 @@ class TactileButton extends StatefulWidget {
     this.width,
     this.height,
     this.disabledTone,
+    this.semanticLabel,
   });
 
   @override
@@ -91,6 +95,7 @@ class _TactileButtonState extends State<TactileButton>
     return Semantics(
       button: true,
       enabled: _enabled,
+      label: widget.semanticLabel,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapDown: _enabled ? _down : null,
@@ -127,10 +132,12 @@ class TactileIconButton extends StatelessWidget {
   final double? radius;
   final Color? iconColor;
   final TactileTone? disabledTone;
+  final String semanticLabel;
 
   const TactileIconButton({
     super.key,
     required this.icon,
+    required this.semanticLabel,
     required this.tone,
     required this.onTap,
     this.size = 48,
@@ -144,6 +151,7 @@ class TactileIconButton extends StatelessWidget {
     return TactileButton(
       tone: tone,
       disabledTone: disabledTone,
+      semanticLabel: semanticLabel,
       onTap: onTap,
       width: size,
       height: size,
