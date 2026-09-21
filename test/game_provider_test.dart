@@ -46,6 +46,9 @@ int _filled(List<GridCell> cells) =>
 /// the following preview (>= 2.5 s) is still running.
 const _afterLevelUp = Duration(milliseconds: 1500);
 
+/// Solution (2 s) plus the lose animation on the board
+const _afterFailure = Duration(milliseconds: 3100);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -271,10 +274,7 @@ void main() {
       _solve(gp);
 
       expect(gp.score.points, 576);
-      expect(
-        gp.score.points,
-        _expectedPoints(levels[0], 7, doubled: true),
-      );
+      expect(gp.score.points, _expectedPoints(levels[0], 7, doubled: true));
       await tester.pump(_afterLevelUp);
       await finish(tester, gp);
     });
@@ -384,24 +384,29 @@ void main() {
   });
 
   group('failure', () {
-    testWidgets('timeout shows the solution for 2 s, then game over', (
-      tester,
-    ) async {
-      final gp = await create(tester);
-      gp.startGame();
-      gp.skipPreview();
+    testWidgets(
+      'timeout shows the solution for 2 s, collapses, then game over',
+      (tester) async {
+        final gp = await create(tester);
+        gp.startGame();
+        gp.skipPreview();
 
-      await tester.pump(const Duration(milliseconds: 7300));
-      expect(gp.gameState, GameState.showSolution);
+        await tester.pump(const Duration(milliseconds: 7300));
+        expect(gp.gameState, GameState.showSolution);
 
-      await tester.pump(const Duration(milliseconds: 1500));
-      expect(gp.gameState, GameState.showSolution);
+        await tester.pump(const Duration(milliseconds: 1500));
+        expect(gp.gameState, GameState.showSolution);
 
-      await tester.pump(const Duration(milliseconds: 700));
-      expect(gp.gameState, GameState.gameOver);
-      expect(gp.isGameOver, isTrue);
-      await finish(tester, gp);
-    });
+        // The board falls apart before the game over card shows
+        await tester.pump(const Duration(milliseconds: 700));
+        expect(gp.gameState, GameState.collapse);
+
+        await tester.pump(GameProvider.collapseDuration);
+        expect(gp.gameState, GameState.gameOver);
+        expect(gp.isGameOver, isTrue);
+        await finish(tester, gp);
+      },
+    );
 
     testWidgets('wrong pattern on validate fails without scoring', (
       tester,
@@ -414,7 +419,7 @@ void main() {
       expect(gp.gameState, GameState.showSolution);
       expect(gp.score.points, 0);
       expect(gp.score.combo, 0);
-      await tester.pump(const Duration(milliseconds: 2100));
+      await tester.pump(_afterFailure);
       expect(gp.gameState, GameState.gameOver);
       await finish(tester, gp);
     });
@@ -587,7 +592,7 @@ void main() {
         gp.targetPattern.indexWhere((c) => c.color == ColorType.none),
       );
       gp.validatePattern();
-      await tester.pump(const Duration(milliseconds: 2100));
+      await tester.pump(_afterFailure);
       expect(gp.isGameOver, isTrue);
 
       final pattern = gp.targetPattern.map((c) => c.color).toList();
@@ -631,7 +636,7 @@ void main() {
       gp.startGame();
       gp.skipPreview();
       gp.validatePattern();
-      await tester.pump(const Duration(milliseconds: 2100));
+      await tester.pump(_afterFailure);
       gp.continueAfterAd();
       expect(gp.hasUsedContinueThisRound, isTrue);
 

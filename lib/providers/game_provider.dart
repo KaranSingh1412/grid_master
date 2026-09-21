@@ -27,6 +27,11 @@ class GameProvider extends ChangeNotifier {
   final Random _random = Random();
   AudioProvider? _audioProvider;
 
+  static const Duration solutionDuration = Duration(seconds: 2);
+
+  /// Length of the lose animation on the board
+  static const Duration collapseDuration = Duration(milliseconds: 1000);
+
   // Getters
   GameState get gameState => _gameState;
   GameState get lastActiveState => _lastActiveState;
@@ -54,6 +59,7 @@ class GameProvider extends ChangeNotifier {
   bool get isStart => _gameState == GameState.start;
   bool get isLevelUp => _gameState == GameState.levelUp;
   bool get isShowSolution => _gameState == GameState.showSolution;
+  bool get isCollapse => _gameState == GameState.collapse;
   bool get hasUsedContinueThisRound => _hasUsedContinueThisRound;
 
   GameProvider() {
@@ -176,10 +182,17 @@ class GameProvider extends ChangeNotifier {
     _audioProvider?.playLoseSound();
     notifyListeners();
 
-    // Show solution for 2 seconds, then show game over
-    Future.delayed(const Duration(seconds: 2), () {
-      _gameState = GameState.gameOver;
+    // Show solution for 2 seconds, let the board fall apart, then game over
+    Future.delayed(solutionDuration, () {
+      if (_gameState != GameState.showSolution) return;
+      _gameState = GameState.collapse;
       notifyListeners();
+
+      Future.delayed(collapseDuration, () {
+        if (_gameState != GameState.collapse) return;
+        _gameState = GameState.gameOver;
+        notifyListeners();
+      });
     });
   }
 
