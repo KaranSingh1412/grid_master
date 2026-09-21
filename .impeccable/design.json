@@ -1,0 +1,300 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-21T21:03:43+00:00",
+  "title": "Design System: Gridmaster",
+  "extensions": {
+    "colorMeta": {
+      "background": {
+        "role": "neutral",
+        "displayName": "Night Ground",
+        "canonical": "#1B1F3B",
+        "tonalRamp": [
+          "#101327",
+          "#1B1F3B",
+          "#2A2F57",
+          "#3D4379"
+        ]
+      },
+      "well": {
+        "role": "neutral",
+        "displayName": "Empty Tile",
+        "canonical": "#2A2F57",
+        "tonalRamp": [
+          "#1D2142",
+          "#2A2F57"
+        ]
+      },
+      "red": {
+        "role": "pattern",
+        "displayName": "Tile Red",
+        "canonical": "#FF6B5E",
+        "tonalRamp": [
+          "#C4463B",
+          "#FF6B5E"
+        ]
+      },
+      "blue": {
+        "role": "pattern",
+        "displayName": "Tile Blue",
+        "canonical": "#3BA3F5",
+        "tonalRamp": [
+          "#2372B5",
+          "#3BA3F5"
+        ]
+      },
+      "green": {
+        "role": "primary",
+        "displayName": "Tile Green",
+        "canonical": "#2CCB8C",
+        "tonalRamp": [
+          "#1C9063",
+          "#2CCB8C",
+          "#5FE0B0"
+        ]
+      },
+      "yellow": {
+        "role": "cta",
+        "displayName": "Key Yellow",
+        "canonical": "#FFC83D",
+        "tonalRamp": [
+          "#C9901A",
+          "#FFC83D"
+        ]
+      },
+      "purple": {
+        "role": "pattern",
+        "displayName": "Tile Purple",
+        "canonical": "#9D7BFF",
+        "tonalRamp": [
+          "#6B4FC9",
+          "#9D7BFF"
+        ]
+      },
+      "orange": {
+        "role": "pattern",
+        "displayName": "Tile Orange",
+        "canonical": "#FF9447",
+        "tonalRamp": [
+          "#C46522",
+          "#FF9447"
+        ]
+      },
+      "pink": {
+        "role": "pattern",
+        "displayName": "Tile Pink",
+        "canonical": "#FF72B6",
+        "tonalRamp": [
+          "#C4468A",
+          "#FF72B6"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "GRIDMASTER on the start screen, extruded with a lip."
+      },
+      "number": {
+        "displayName": "Numbers",
+        "purpose": "Score, level, timer, coins. Always tabular figures."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Uppercase captions above values, tracked 1.2."
+      }
+    },
+    "shadows": [
+      {
+        "name": "lip-regular",
+        "value": "0 6px 0 <lip>",
+        "purpose": "Solid lower edge of keys, tiles and panels; 2px while pressed, face travels 4px."
+      },
+      {
+        "name": "lip-small",
+        "value": "0 4px 0 <lip>",
+        "purpose": "Pills, badges, icon keys, empty tiles; 1.5px while pressed."
+      },
+      {
+        "name": "soft-drop",
+        "value": "0 6px 10px rgba(0,0,0,0.28)",
+        "purpose": "Only under large keys and panels, never under grid tiles."
+      },
+      {
+        "name": "halo",
+        "value": "0 0 0 2.5px <tile 32%>, 0 0 0 5px <tile 11%>",
+        "purpose": "Blur-free glow for glow_grid, neon_border_grid and the pulse/sparkle animations."
+      }
+    ],
+    "motion": [
+      {
+        "name": "press",
+        "value": "90ms ease-out",
+        "purpose": "Face sinks onto the lip."
+      },
+      {
+        "name": "release",
+        "value": "180ms easeOutBack",
+        "purpose": "Face springs back."
+      },
+      {
+        "name": "pop",
+        "value": "380ms, scale 0.6 -> 1.12 -> 0.96 -> 1",
+        "purpose": "Tile placed, pattern entrance, cue text."
+      },
+      {
+        "name": "stagger",
+        "value": "70ms per tile, cascade capped at 450ms",
+        "purpose": "Pattern entrance and the diagonal level-up wave."
+      },
+      {
+        "name": "particles",
+        "value": "520ms ease-out, ~10 chips, pooled",
+        "purpose": "Burst in the tile color on placement and in the wave."
+      },
+      {
+        "name": "grid-pulse",
+        "value": "250ms, scale 0.97",
+        "purpose": "Preview turns into rebuild."
+      },
+      {
+        "name": "wiggle",
+        "value": "320ms horizontal",
+        "purpose": "Wrong tiles when the solution shows."
+      },
+      {
+        "name": "shake",
+        "value": "260ms decaying",
+        "purpose": "Play area on failure, never the banner."
+      },
+      {
+        "name": "count-up",
+        "value": "700ms easeOutCubic",
+        "purpose": "Score and coin balances."
+      },
+      {
+        "name": "overlay-in",
+        "value": "280ms easeOutBack, scale 0.86 -> 1 plus fade",
+        "purpose": "Pause and game-over cards."
+      },
+      {
+        "name": "level-up-window",
+        "value": "1200ms",
+        "purpose": "Time between a solved level and the next preview."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "small-game",
+        "value": "height < 600"
+      },
+      {
+        "name": "small-start",
+        "value": "height < 667"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "CTA Key",
+      "kind": "button",
+      "refersTo": "button-cta",
+      "description": "Yellow key for the main action: play, skip, watch ad, prices.",
+      "html": "<button class=\"ds-key-cta\">Überspringen</button>",
+      "css": ".ds-key-cta { font-family: Fredoka, sans-serif; font-weight: 600; font-size: 18px; color: #4A3506; border: none; cursor: pointer; padding: 12px 24px; border-radius: 16px; background: linear-gradient(180deg, color-mix(in srgb, #FFC83D 90%, white) 0%, #FFC83D 45%, color-mix(in srgb, #FFC83D 82%, #C9901A) 100%); box-shadow: 0 6px 0 #C9901A; transform: translateY(0); transition: transform 90ms ease-out, box-shadow 90ms ease-out; } .ds-key-cta:active { transform: translateY(4px); box-shadow: 0 2px 0 #C9901A; } .ds-key-cta:focus-visible { outline: 3px solid #F4F5FF; outline-offset: 3px; }"
+    },
+    {
+      "name": "Primary Key",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Green key for continue and retry.",
+      "html": "<button class=\"ds-key-primary\">WEITER</button>",
+      "css": ".ds-key-primary { font-family: Fredoka, sans-serif; font-weight: 600; font-size: 18px; color: #0B3323; border: none; cursor: pointer; padding: 12px 24px; border-radius: 16px; background: linear-gradient(180deg, color-mix(in srgb, #2CCB8C 90%, white) 0%, #2CCB8C 45%, color-mix(in srgb, #2CCB8C 82%, #1C9063) 100%); box-shadow: 0 6px 0 #1C9063; transform: translateY(0); transition: transform 90ms ease-out, box-shadow 90ms ease-out; } .ds-key-primary:active { transform: translateY(4px); box-shadow: 0 2px 0 #1C9063; } .ds-key-primary:focus-visible { outline: 3px solid #F4F5FF; outline-offset: 3px; }"
+    },
+    {
+      "name": "Neutral Key",
+      "kind": "button",
+      "refersTo": "button-raised",
+      "description": "Secondary actions on panels; its lip is darker than the panel.",
+      "html": "<button class=\"ds-key-raised\">EINSTELLUNGEN</button>",
+      "css": ".ds-key-raised { font-family: Fredoka, sans-serif; font-weight: 600; font-size: 18px; color: #FFFFFF; border: none; cursor: pointer; padding: 12px 24px; border-radius: 16px; background: linear-gradient(180deg, color-mix(in srgb, #3D4379 90%, white) 0%, #3D4379 45%, color-mix(in srgb, #3D4379 82%, #191D3C) 100%); box-shadow: 0 6px 0 #191D3C; transform: translateY(0); transition: transform 90ms ease-out, box-shadow 90ms ease-out; font-size: 16px; } .ds-key-raised:active { transform: translateY(4px); box-shadow: 0 2px 0 #191D3C; } .ds-key-raised:focus-visible { outline: 3px solid #F4F5FF; outline-offset: 3px; }"
+    },
+    {
+      "name": "Board",
+      "kind": "custom",
+      "refersTo": "cell-filled",
+      "description": "Sunken tray with colored tiles and empty wells.",
+      "html": "<div class=\"ds-tray\"><span class=\"ds-tile ds-tile-blue\"></span><span class=\"ds-tile ds-tile-empty\"></span><span class=\"ds-tile ds-tile-red\"></span><span class=\"ds-tile ds-tile-empty\"></span><span class=\"ds-tile ds-tile-green\"></span><span class=\"ds-tile ds-tile-empty\"></span></div>",
+      "css": ".ds-tray { display: grid; grid-template-columns: repeat(3, 56px); gap: 8px; padding: 10px 10px 16px; border-radius: 22px; width: max-content; background: linear-gradient(180deg, #0A0D1A 0%, #101327 12%, #151830 100%); } .ds-tile { display: block; width: 56px; height: 56px; border-radius: 12px; transition: transform 90ms ease-out, box-shadow 90ms ease-out; } .ds-tile-empty { background: #2A2F57; box-shadow: 0 4px 0 #1D2142; } .ds-tile-blue { background: linear-gradient(180deg, #4FAEF6, #3BA3F5 45%, #3798E6); box-shadow: 0 6px 0 #2372B5; } .ds-tile-red { background: linear-gradient(180deg, #FF7A6E, #FF6B5E 45%, #F46255); box-shadow: 0 6px 0 #C4463B; } .ds-tile-green { background: linear-gradient(180deg, #41D098, #2CCB8C 45%, #29C085); box-shadow: 0 6px 0 #1C9063; } .ds-tile:active { transform: translateY(4px); box-shadow: 0 2px 0 #1D2142; }"
+    },
+    {
+      "name": "Tab Keys",
+      "kind": "nav",
+      "refersTo": "tab-selected",
+      "description": "Shop tabs as a row of keys; the chosen one stays pushed in.",
+      "html": "<div class=\"ds-tabs\"><button class=\"ds-tab ds-tab-on\">Münzen</button><button class=\"ds-tab\">Themes</button><button class=\"ds-tab\">Raster</button></div>",
+      "css": ".ds-tabs { display: flex; gap: 8px; } .ds-tab { font-family: Fredoka, sans-serif; font-weight: 600; font-size: 15px; color: #fff; border: none; cursor: pointer; padding: 10px 16px; border-radius: 12px; background: #3D4379; box-shadow: 0 4px 0 #191D3C; transition: transform 90ms ease-out, box-shadow 90ms ease-out; } .ds-tab:active, .ds-tab-on { transform: translateY(2.5px); box-shadow: 0 1.5px 0 #191D3C; } .ds-tab-on { background: #2CCB8C; color: #0B3323; box-shadow: 0 1.5px 0 #1C9063; } .ds-tab:focus-visible { outline: 3px solid #F4F5FF; outline-offset: 3px; }"
+    },
+    {
+      "name": "Coin Pill",
+      "kind": "chip",
+      "refersTo": "pill-coins",
+      "description": "Coin balance; counts up and bumps when it changes.",
+      "html": "<span class=\"ds-pill\"><span class=\"ds-coin\"></span>27</span>",
+      "css": ".ds-pill { display: inline-flex; align-items: center; gap: 6px; font-family: Fredoka, sans-serif; font-weight: 600; font-size: 18px; font-variant-numeric: tabular-nums; color: #FFC83D; padding: 5px 14px 5px 10px; border-radius: 999px; background: #2A2F57; box-shadow: 0 4px 0 #11142B; } .ds-coin { width: 20px; height: 20px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #FFE27A, #F5A800); box-shadow: inset 0 -2px 0 #C47F00; }"
+    },
+    {
+      "name": "Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Overlay card, shop rows, settings cards. Stat wells inside are sunken, never nested panels.",
+      "html": "<div class=\"ds-panel\"><div class=\"ds-panel-title\">PAUSE</div><div class=\"ds-stat\"><small>PUNKTE</small><b>250</b></div></div>",
+      "css": ".ds-panel { font-family: Fredoka, sans-serif; color: #F4F5FF; width: 240px; padding: 24px; border-radius: 28px; text-align: center; background: linear-gradient(180deg, #3F4468 0%, #2A2F57 45%, #262B50 100%); box-shadow: 0 6px 0 #11142B, 0 12px 10px rgba(0,0,0,0.28); } .ds-panel-title { font-weight: 700; font-size: 32px; margin-bottom: 16px; } .ds-stat { border-radius: 16px; padding: 12px; background: linear-gradient(180deg, #0A0D1A 0%, #101327 12%, #151830 100%); } .ds-stat small { display: block; font-weight: 600; font-size: 11px; letter-spacing: 1.2px; color: #969DCB; } .ds-stat b { font-size: 24px; font-variant-numeric: tabular-nums; color: #5FE0B0; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "A box of chunky plastic tiles you press with your thumb",
+    "overview": "Gridmaster is a memory puzzle played in short sessions, one-handed. Every surface is a physical piece: a face sitting on a solid darker lip. Pressing sinks the face 4 px and the lip shrinks from 6 to 2; the outer size never changes. The board is a sunken tray, the palette a row of keys within thumb reach. Depth comes from the lip, one soft drop shadow under large pieces, and a faint top-lit gradient. One shared look on iOS and Android; eight cosmetic themes swap the colors and get computed lips.",
+    "keyCharacteristics": [
+      "Face plus solid lip on every interactive piece",
+      "Sunken wells for the board, stat tiles and tracks",
+      "Fredoka everywhere, tabular numerals",
+      "Overshoot pop and pooled particle bursts in the tile color",
+      "Pattern colors are reserved for the pattern"
+    ],
+    "rules": [
+      {
+        "name": "The Lip Rule",
+        "body": "A lip is always darker than the ground its piece sits on. Panels on the background use #11142B, keys on panels #191D3C; themes compute theirs.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Pattern Color Rule",
+        "body": "Tile colors are never dimmed and never reused for controls that are not pattern colors; the hint key is neutral for that reason.",
+        "section": "colors"
+      },
+      {
+        "name": "The Banner Lane Rule",
+        "body": "Nothing animates at, on or over an ad banner. Particles and the screen shake are clipped to the play area, overlays stop above a loaded banner.",
+        "section": "layout"
+      },
+      {
+        "name": "The Cheap Phone Rule",
+        "body": "No blur per tile. Halos are stacked translucent outlines, particles live in one pooled painter, board and particles sit in their own repaint boundaries.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do build new controls from TactileSurface, TactileButton, TactileCell and TactileWell.",
+      "Do read every color from ThemeProvider.palette so purchased themes apply everywhere.",
+      "Do respect MediaQuery.disableAnimations: keep the press, drop cascades, hops, shakes and particles.",
+      "Do make paid grid styles and cell animations add on top of the default effects."
+    ],
+    "donts": [
+      "Don't use hairline borders, translucent panels or Material ripples.",
+      "Don't change a piece's outer size on press.",
+      "Don't switch to Cupertino or Material idioms per platform.",
+      "Don't introduce a second typeface.",
+      "Don't put a soft shadow or blur under grid tiles."
+    ]
+  }
+}
