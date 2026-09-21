@@ -54,6 +54,7 @@
   "cosmetics_tab_themes": "Themes",
   "cosmetics_tab_grids": "Raster",
   "cosmetics_tab_animations": "Animation",
+  "cosmetics_tab_lose": "Game Over",
   "cosmetics_tab_sounds": "Sound",
   "cosmetics_unlock_at_level": "Freischaltbar bei Level {level}",
   "cosmetics_or_buy": "oder kaufen für",
@@ -88,6 +89,10 @@
   "cosmetic_bounce": "Hüpfen",
   "cosmetic_sparkle": "Funkeln",
   
+  "cosmetic_default_lose": "Keine",
+  "cosmetic_fall_lose": "Durchfallen",
+  "cosmetic_shatter_lose": "Glasscherben",
+  "cosmetic_explode_lose": "Explosion",
   "cosmetic_default_sound": "Original",
   "cosmetic_zen_sound": "Zen Klänge",
   "cosmetic_fart_sound": "Furz Sounds",

@@ -335,6 +335,31 @@ const List<CosmeticItem> allCosmetics = [
     category: CosmeticCategory.soundPack,
     cosmeticCost: 120,
   ),
+
+  // Lose animations
+  CosmeticItem(
+    id: 'default_lose',
+    nameKey: 'cosmetic_default_lose',
+    category: CosmeticCategory.loseAnimation,
+  ),
+  CosmeticItem(
+    id: 'fall_lose',
+    nameKey: 'cosmetic_fall_lose',
+    category: CosmeticCategory.loseAnimation,
+    cosmeticCost: 125,
+  ),
+  CosmeticItem(
+    id: 'shatter_lose',
+    nameKey: 'cosmetic_shatter_lose',
+    category: CosmeticCategory.loseAnimation,
+    cosmeticCost: 175,
+  ),
+  CosmeticItem(
+    id: 'explode_lose',
+    nameKey: 'cosmetic_explode_lose',
+    category: CosmeticCategory.loseAnimation,
+    cosmeticCost: 225,
+  ),
 ];
 
 /// Available color options for the game

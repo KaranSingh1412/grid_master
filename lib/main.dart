@@ -18,6 +18,7 @@ import 'providers/theme_provider.dart';
 import 'theme/app_theme.dart';
 import 'theme/tactile_tokens.dart';
 import 'router/app_router.dart';
+import 'widgets/effects/grid_collapse.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -154,6 +155,15 @@ class _AppInitializerState extends State<_AppInitializer> {
                 musicVolume: settingsProvider.musicVolume,
                 soundVolume: settingsProvider.soundVolume,
                 soundPackId: creditProvider.cosmeticState.equippedSoundPackId,
+              );
+            }
+
+            if (creditProvider.isLoaded) {
+              context.read<GameProvider>().setLoseAnimationEnabled(
+                GridCollapseKind.ofCosmetic(
+                      creditProvider.cosmeticState.equippedLoseAnimationId,
+                    ) !=
+                    null,
               );
             }
 

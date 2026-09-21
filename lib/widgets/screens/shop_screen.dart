@@ -13,6 +13,8 @@ import '../../providers/theme_provider.dart';
 import '../../theme/app_theme.dart';
 import '../effects/bump.dart';
 import '../effects/count_up_text.dart';
+import '../effects/grid_collapse.dart';
+import '../effects/grid_collapse_preview.dart';
 import '../tactile/tactile.dart';
 
 /// Credit package definition
@@ -77,7 +79,7 @@ class _ShopScreenState extends State<ShopScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
   }
 
   @override
@@ -115,6 +117,7 @@ class _ShopScreenState extends State<ShopScreen>
                   'cosmetics_tab_themes'.tr(),
                   'cosmetics_tab_grids'.tr(),
                   'cosmetics_tab_animations'.tr(),
+                  'cosmetics_tab_lose'.tr(),
                   'cosmetics_tab_sounds'.tr(),
                 ],
               ),
@@ -130,6 +133,9 @@ class _ShopScreenState extends State<ShopScreen>
                   ),
                   _ShopCosmeticCategoryList(
                     category: CosmeticCategory.cellAnimation,
+                  ),
+                  _ShopCosmeticCategoryList(
+                    category: CosmeticCategory.loseAnimation,
                   ),
                   _ShopCosmeticCategoryList(
                     category: CosmeticCategory.soundPack,
@@ -571,6 +577,8 @@ class _ShopCosmeticCategoryList extends StatelessWidget {
         return state.equippedCellAnimationId == item.id;
       case CosmeticCategory.soundPack:
         return state.equippedSoundPackId == item.id;
+      case CosmeticCategory.loseAnimation:
+        return state.equippedLoseAnimationId == item.id;
     }
   }
 }
@@ -664,7 +672,8 @@ class _ShopCosmeticItemCard extends StatelessWidget {
     );
   }
 
-  /// Themes preview as a mini board in their own colors, the rest as an icon
+  /// Themes preview as a mini board in their own colors, lose animations
+  /// play on one, the rest shows an icon
   Widget _buildPreview(TactilePalette palette) {
     if (item.themeType != null) {
       final preview = TactilePalette.fromTheme(
@@ -704,6 +713,12 @@ class _ShopCosmeticItemCard extends StatelessWidget {
           ],
         ),
       );
+    }
+
+    // Lose animations play on a mini board, so they can be seen before buying
+    final collapse = GridCollapseKind.ofCosmetic(item.id);
+    if (collapse != null) {
+      return GridCollapsePreview(kind: collapse, palette: palette);
     }
 
     final tone = isUnlocked
@@ -801,6 +816,8 @@ class _ShopCosmeticItemCard extends StatelessWidget {
         return Icons.auto_awesome_motion_rounded;
       case CosmeticCategory.soundPack:
         return Icons.music_note_rounded;
+      case CosmeticCategory.loseAnimation:
+        return Icons.block_rounded;
     }
   }
 }

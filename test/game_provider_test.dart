@@ -384,10 +384,26 @@ void main() {
   });
 
   group('failure', () {
+    testWidgets('without a lose animation game over follows the solution', (
+      tester,
+    ) async {
+      final gp = await create(tester);
+      gp.startGame();
+      gp.skipPreview();
+      gp.validatePattern();
+
+      await tester.pump(const Duration(milliseconds: 1900));
+      expect(gp.gameState, GameState.showSolution);
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(gp.gameState, GameState.gameOver);
+      await finish(tester, gp);
+    });
+
     testWidgets(
       'timeout shows the solution for 2 s, collapses, then game over',
       (tester) async {
         final gp = await create(tester);
+        gp.setLoseAnimationEnabled(true);
         gp.startGame();
         gp.skipPreview();
 

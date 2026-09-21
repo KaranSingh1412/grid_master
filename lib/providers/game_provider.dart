@@ -20,6 +20,7 @@ class GameProvider extends ChangeNotifier {
   int _hints = 3;
   bool _hasUsedContinueThisRound = false;
   bool _hasDoubleBonus = false;
+  bool _loseAnimationEnabled = false;
   Timer? _gameTimer;
   // Ticks every 100 ms; kept apart from notifyListeners so only timer
   // widgets rebuild while the clock runs.
@@ -64,6 +65,12 @@ class GameProvider extends ChangeNotifier {
 
   GameProvider() {
     _loadHighScore();
+  }
+
+  /// Whether a lose animation is equipped; without one the game over card
+  /// follows the solution directly
+  void setLoseAnimationEnabled(bool enabled) {
+    _loseAnimationEnabled = enabled;
   }
 
   /// Set the audio provider for playing sounds
@@ -185,6 +192,11 @@ class GameProvider extends ChangeNotifier {
     // Show solution for 2 seconds, let the board fall apart, then game over
     Future.delayed(solutionDuration, () {
       if (_gameState != GameState.showSolution) return;
+      if (!_loseAnimationEnabled) {
+        _gameState = GameState.gameOver;
+        notifyListeners();
+        return;
+      }
       _gameState = GameState.collapse;
       notifyListeners();
 

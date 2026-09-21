@@ -283,6 +283,11 @@ class CreditProvider extends ChangeNotifier {
       case CosmeticCategory.soundPack:
         _cosmeticState = _cosmeticState.copyWith(equippedSoundPackId: item.id);
         break;
+      case CosmeticCategory.loseAnimation:
+        _cosmeticState = _cosmeticState.copyWith(
+          equippedLoseAnimationId: item.id,
+        );
+        break;
     }
     _saveCosmeticState();
     notifyListeners();
