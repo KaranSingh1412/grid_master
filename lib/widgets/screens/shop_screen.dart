@@ -287,22 +287,6 @@ class _ShopCoinsTab extends StatelessWidget {
     );
   }
 
-  void _watchAdForCredits(BuildContext context) {
-    final creditProvider = context.read<CreditProvider>();
-    if (!creditProvider.canWatchAdToday) return;
-
-    final adsProvider = context.read<AdsProvider>();
-
-    adsProvider.showRewardedAd(
-      onRewarded: () {
-        const int adRewardCredits = 5;
-        creditProvider.addCredits(adRewardCredits);
-        creditProvider.recordAdWatch();
-        _showPurchaseSuccess(context, adRewardCredits);
-      },
-    );
-  }
-
   void _restorePurchases(BuildContext context) async {
     final purchasesProvider = context.read<PurchasesProvider>();
     final success = await purchasesProvider.restorePurchases();
@@ -321,13 +305,10 @@ class _ShopCoinsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final purchasesProvider = context.watch<PurchasesProvider>();
-    final adsProvider = context.watch<AdsProvider>();
-    final creditProvider = context.watch<CreditProvider>();
     final palette = context.select<ThemeProvider, TactilePalette>(
       (t) => t.palette,
     );
     final text = TactileText(palette);
-    final showFreeCredits = adsProvider.isRewardedAdLoaded;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
@@ -361,12 +342,6 @@ class _ShopCoinsTab extends StatelessWidget {
                       ),
               ),
             ),
-            const SizedBox(height: 12),
-          ],
-
-          // Free Credits
-          if (showFreeCredits) ...[
-            _buildFreeCreditsRow(context, palette, creditProvider),
             const SizedBox(height: 12),
           ],
 
@@ -489,47 +464,6 @@ class _ShopCoinsTab extends StatelessWidget {
           const SizedBox(width: 12),
           action,
         ],
-      ),
-    );
-  }
-
-  Widget _buildFreeCreditsRow(
-    BuildContext context,
-    TactilePalette palette,
-    CreditProvider creditProvider,
-  ) {
-    final canWatch = creditProvider.canWatchAdToday;
-    final text = TactileText(palette);
-    final muted = palette.raised.muted(palette.surface.face);
-
-    return _buildOfferRow(
-      palette,
-      icon: canWatch ? Icons.play_circle_outline : Icons.check_circle,
-      iconTone: canWatch ? palette.primary : muted,
-      title: 'shop_free_credits'.tr(),
-      subtitle: canWatch ? 'shop_watch_ad'.tr() : 'shop_ad_watched_today'.tr(),
-      dimmed: !canWatch,
-      action: TactileButton(
-        tone: palette.primary,
-        disabledTone: muted,
-        depth: TactileDepth.small,
-        radius: TactileRadii.sm,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-        onTap: canWatch ? () => _watchAdForCredits(context) : null,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset('assets/img/coin.png', width: 16, height: 16),
-            const SizedBox(width: 4),
-            Text(
-              '+5',
-              style: text.number(
-                15,
-                color: canWatch ? palette.primary.ink : palette.textMuted,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -11,6 +11,7 @@ import '../../providers/audio_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
+import '../effects/bump.dart';
 import '../effects/count_up_text.dart';
 import '../tactile/tactile.dart';
 
@@ -184,6 +185,21 @@ class _StartScreenState extends State<StartScreen>
     final creditProvider = context.watch<CreditProvider>();
     final fontSize = coinSize * 0.85;
 
+    return Bump(
+      trigger: creditProvider.credits,
+      scale: 1.2,
+      rotate: 0.05,
+      alignment: Alignment.centerLeft,
+      child: _buildCreditsPill(palette, creditProvider, coinSize, fontSize),
+    );
+  }
+
+  Widget _buildCreditsPill(
+    TactilePalette palette,
+    CreditProvider creditProvider,
+    double coinSize,
+    double fontSize,
+  ) {
     return TactileSurface(
       tone: palette.surface,
       radius: TactileRadii.pill,
@@ -402,27 +418,40 @@ class _StartScreenState extends State<StartScreen>
     final hasRewardedAd = context.select<AdsProvider, bool>(
       (a) => a.isRewardedAdLoaded,
     );
+    final canWatchAdToday = context.select<CreditProvider, bool>(
+      (c) => c.canWatchAdToday,
+    );
     final size = isSmallScreen ? 52.0 : 58.0;
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // x2 bonus through a rewarded ad
-        // x2 bonus through a rewarded ad: the key says what you get (x2
-        // points) and how (the video badge)
-        _buildBonusKey(context, palette, size, hasRewardedAd),
-        const SizedBox(width: 16),
-        TactileIconButton(
-          icon: Icons.storefront,
-          semanticLabel: 'shop_title'.tr(),
-          tone: palette.gameTones[4],
-          size: size,
-          onTap: () {
-            context.read<AudioProvider>().playUiTapSound();
-            _openShop(context);
-          },
-        ),
-      ],
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // x2 bonus through a rewarded ad: the key says what you get (x2
+          // points) and how (the video badge)
+          _buildBonusKey(context, palette, size, hasRewardedAd),
+          const SizedBox(width: 14),
+          // Free coins once a day, also through a rewarded ad
+          _buildCoinRewardKey(
+            context,
+            palette,
+            size,
+            hasRewardedAd && canWatchAdToday,
+          ),
+          const SizedBox(width: 14),
+          TactileIconButton(
+            icon: Icons.storefront,
+            semanticLabel: 'shop_title'.tr(),
+            tone: palette.gameTones[4],
+            size: size,
+            onTap: () {
+              context.read<AudioProvider>().playUiTapSound();
+              _openShop(context);
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -434,8 +463,85 @@ class _StartScreenState extends State<StartScreen>
   ) {
     final text = TactileText(palette);
     final tone = TactileColors.orange;
-    final muted = palette.raised.muted(palette.background);
     final ink = enabled ? tone.ink : palette.textMuted;
+
+    return _buildAdKey(
+      palette,
+      tone: tone,
+      height: height,
+      enabled: enabled,
+      semanticLabel: 'a11y_bonus_ad'.tr(),
+      onTap: () => _activateBonusWithAd(context),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('x2', style: text.number(height * 0.5, color: ink)),
+          const SizedBox(width: 8),
+          Text(
+            'points'.tr().toUpperCase(),
+            style: text.label.copyWith(
+              fontSize: height * 0.24,
+              color: ink,
+              letterSpacing: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCoinRewardKey(
+    BuildContext context,
+    TactilePalette palette,
+    double height,
+    bool enabled,
+  ) {
+    final text = TactileText(palette);
+    final tone = palette.primary;
+
+    return _buildAdKey(
+      palette,
+      tone: tone,
+      height: height,
+      enabled: enabled,
+      semanticLabel: 'shop_free_credits'.tr(),
+      onTap: () => _watchAdForCredits(context),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '+$_adRewardCredits',
+            style: text.number(
+              height * 0.46,
+              color: enabled ? tone.ink : palette.textMuted,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Opacity(
+            opacity: enabled ? 1 : 0.45,
+            child: Image.asset(
+              'assets/img/coin.png',
+              width: height * 0.44,
+              height: height * 0.44,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Key for something a rewarded ad pays for. The video badge in the corner
+  /// says how you get it.
+  Widget _buildAdKey(
+    TactilePalette palette, {
+    required TactileTone tone,
+    required double height,
+    required bool enabled,
+    required String semanticLabel,
+    required VoidCallback onTap,
+    required Widget child,
+  }) {
+    final muted = palette.raised.muted(palette.background);
 
     return Stack(
       clipBehavior: Clip.none,
@@ -443,30 +549,14 @@ class _StartScreenState extends State<StartScreen>
         TactileButton(
           tone: tone,
           disabledTone: muted,
-          semanticLabel: 'a11y_bonus_ad'.tr(),
+          semanticLabel: semanticLabel,
           height: height,
           radius: height * 0.34,
           depth: TactileDepth.small,
           padding: const EdgeInsets.fromLTRB(16, 0, 18, 0),
-          onTap: enabled ? () => _activateBonusWithAd(context) : null,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text('x2', style: text.number(height * 0.5, color: ink)),
-              const SizedBox(width: 8),
-              Text(
-                'points'.tr().toUpperCase(),
-                style: text.label.copyWith(
-                  fontSize: height * 0.24,
-                  color: ink,
-                  letterSpacing: 1,
-                ),
-              ),
-            ],
-          ),
+          onTap: enabled ? onTap : null,
+          child: child,
         ),
-        // Video badge: the boost costs one ad
         Positioned(
           top: -9,
           right: -9,
@@ -487,6 +577,21 @@ class _StartScreenState extends State<StartScreen>
           ),
         ),
       ],
+    );
+  }
+
+  static const int _adRewardCredits = 5;
+
+  /// Once a day: watch a rewarded ad, get coins. The coin pill counts up.
+  void _watchAdForCredits(BuildContext context) {
+    final creditProvider = context.read<CreditProvider>();
+    if (!creditProvider.canWatchAdToday) return;
+
+    context.read<AdsProvider>().showRewardedAd(
+      onRewarded: () {
+        creditProvider.addCredits(_adRewardCredits);
+        creditProvider.recordAdWatch();
+      },
     );
   }
 
