@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/tactile_tokens.dart';
+import '../game/board_decor.dart';
 import 'tactile_surface.dart';
 
 /// One grid tile. Pure paint, no blur, so 25 of them stay cheap.
@@ -11,6 +12,7 @@ class TactileCell extends StatelessWidget {
   final Color? ringColor;
   final double ringWidth;
   final Color? haloColor;
+  final CellSprite? sprite;
 
   const TactileCell({
     super.key,
@@ -21,6 +23,7 @@ class TactileCell extends StatelessWidget {
     this.ringColor,
     this.ringWidth = 0,
     this.haloColor,
+    this.sprite,
   });
 
   @override
@@ -36,6 +39,7 @@ class TactileCell extends StatelessWidget {
         ringColor: ringColor,
         ringWidth: ringWidth,
         haloColor: haloColor,
+        sprite: filled ? sprite : null,
       ),
       child: const SizedBox.expand(),
     );

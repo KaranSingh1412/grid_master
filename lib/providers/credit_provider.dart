@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/game_models.dart';
 import '../constants/game_constants.dart';
+import '../models/progress_models.dart';
 
 /// Provider for managing in-game credits/coins
 /// Uses secure storage to prevent tampering
@@ -13,6 +15,9 @@ class CreditProvider extends ChangeNotifier {
   static const _paidHintsKey = 'paid_hints_today';
   static const _paidHintsDateKey = 'paid_hints_date';
   static const _cosmeticStateKey = 'cosmetic_state';
+  static const _blockPointsKey = 'block_points';
+  static const _blockPointsLifetimeKey = 'block_points_lifetime';
+  static const _lootboxesKey = 'lootboxes_pending';
   static const int maxPaidHintsPerDay = 3;
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
@@ -28,8 +33,25 @@ class CreditProvider extends ChangeNotifier {
   int _paidHintsToday = 0;
   DateTime? _paidHintsDate;
   CosmeticState _cosmeticState = const CosmeticState();
+  int _blockPoints = 0;
+  int _blockPointsLifetime = 0;
+  int _lootboxes = 0;
+  final Random _random = Random();
 
   int get credits => _credits;
+
+  /// Spendable Blockpunkte: every point scored in a run lands here
+  int get blockPoints => _blockPoints;
+
+  /// Blockpunkte ever earned, spending does not lower it
+  int get blockPointsLifetime => _blockPointsLifetime;
+
+  /// Free lootboxes waiting to be opened
+  int get lootboxes => _lootboxes;
+
+  /// 0..1 on the way to the next free lootbox
+  double get lootboxProgress =>
+      (_blockPointsLifetime % blockPointsPerLootbox) / blockPointsPerLootbox;
   int get cosmeticCredits => _cosmeticCredits;
   bool get isLoaded => _isLoaded;
   int get paidHintsRemaining => maxPaidHintsPerDay - _paidHintsToday;
@@ -84,6 +106,10 @@ class CreditProvider extends ChangeNotifier {
         _cosmeticState = CosmeticState.fromJson(jsonDecode(cosmeticStateStr));
       }
 
+      _blockPoints = await _readInt(_blockPointsKey);
+      _blockPointsLifetime = await _readInt(_blockPointsLifetimeKey);
+      _lootboxes = await _readInt(_lootboxesKey);
+
       // Load last ad watch date
       final lastAdStr = await _secureStorage.read(key: _lastAdWatchKey);
       if (lastAdStr != null) {
@@ -121,6 +147,91 @@ class CreditProvider extends ChangeNotifier {
     }
     _isLoaded = true;
     notifyListeners();
+  }
+
+  Future<int> _readInt(String key) async {
+    final value = await _secureStorage.read(key: key);
+    return value != null ? int.tryParse(value) ?? 0 : 0;
+  }
+
+  Future<void> _saveProgress() async {
+    try {
+      await _secureStorage.write(
+        key: _blockPointsKey,
+        value: _blockPoints.toString(),
+      );
+      await _secureStorage.write(
+        key: _blockPointsLifetimeKey,
+        value: _blockPointsLifetime.toString(),
+      );
+      await _secureStorage.write(
+        key: _lootboxesKey,
+        value: _lootboxes.toString(),
+      );
+    } catch (e) {
+      debugPrint('Failed to save Blockpunkte: $e');
+    }
+  }
+
+  /// Book Blockpunkte scored in a run. Crossing a lootbox threshold of the
+  /// lifetime total adds a free lootbox. Returns the number of new boxes.
+  int addBlockPoints(int amount) {
+    if (amount <= 0) return 0;
+    final before = _blockPointsLifetime ~/ blockPointsPerLootbox;
+    _blockPoints += amount;
+    _blockPointsLifetime += amount;
+    final newBoxes = _blockPointsLifetime ~/ blockPointsPerLootbox - before;
+    _lootboxes += newBoxes;
+    _saveProgress();
+    notifyListeners();
+    return newBoxes;
+  }
+
+  /// Buy a cosmetic with Blockpunkte instead of coins
+  bool purchaseCosmeticWithBlockPoints(CosmeticItem item) {
+    final cost = blockPointCost(item);
+    if (cost <= 0 || _blockPoints < cost) return false;
+    if (_cosmeticState.isUnlocked(item.id)) return false;
+    _blockPoints -= cost;
+    _cosmeticState = _cosmeticState.copyWith(
+      unlockedCosmetics: Set<String>.from(_cosmeticState.unlockedCosmetics)
+        ..add(item.id),
+    );
+    _saveProgress();
+    _saveCosmeticState();
+    notifyListeners();
+    return true;
+  }
+
+  /// Open one waiting lootbox and pay out its reward
+  LootboxReward? openLootbox() {
+    if (_lootboxes <= 0) return null;
+    final locked = allCosmetics
+        .where((c) => !_cosmeticState.isUnlocked(c.id))
+        .toList();
+    final reward = LootboxReward.roll(_random, locked);
+    _lootboxes--;
+    switch (reward.type) {
+      case LootboxRewardType.coins:
+        _credits += reward.amount;
+        _saveCredits();
+        break;
+      case LootboxRewardType.blockPoints:
+        // A gift, not a score: it is spendable but does not count towards
+        // the next lootbox
+        _blockPoints += reward.amount;
+        break;
+      case LootboxRewardType.cosmetic:
+        _cosmeticState = _cosmeticState.copyWith(
+          unlockedCosmetics: Set<String>.from(_cosmeticState.unlockedCosmetics)
+            ..add(reward.cosmetic!.id),
+        );
+        _saveCosmeticState();
+        break;
+    }
+    _saveProgress();
+    notifyListeners();
+    return reward;
   }
 
   Future<void> _saveCredits() async {
@@ -287,6 +398,12 @@ class CreditProvider extends ChangeNotifier {
         _cosmeticState = _cosmeticState.copyWith(
           equippedLoseAnimationId: item.id,
         );
+        break;
+      case CosmeticCategory.gridFrame:
+        _cosmeticState = _cosmeticState.copyWith(equippedFrameId: item.id);
+        break;
+      case CosmeticCategory.cellSprite:
+        _cosmeticState = _cosmeticState.copyWith(equippedSpriteId: item.id);
         break;
     }
     _saveCosmeticState();

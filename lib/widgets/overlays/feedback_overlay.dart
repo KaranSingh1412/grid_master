@@ -6,6 +6,8 @@ import '../../models/game_models.dart';
 import '../../providers/game_provider.dart';
 import '../../providers/ads_provider.dart';
 import '../../providers/audio_provider.dart';
+import '../../providers/credit_provider.dart';
+import '../../providers/stats_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
@@ -117,8 +119,10 @@ class _FeedbackOverlayState extends State<FeedbackOverlay> {
               label: 'retry'.tr(),
               tone: palette.primary,
               large: true,
-              onTap: () => gameProvider.restart(),
+              onTap: () => _retry(context, gameProvider),
             ),
+
+            _buildRetryDoubleButton(context, gameProvider, palette),
 
             _buildWatchAdButton(context, gameProvider, palette),
 
@@ -132,6 +136,8 @@ class _FeedbackOverlayState extends State<FeedbackOverlay> {
                 context.read<AudioProvider>().playBackgroundMusic();
                 gameProvider.goToHome();
                 context.go(AppRoutes.home);
+                // Back home after a run is a calm moment to ask for a rating
+                context.read<StatsProvider>().maybeRequestReview();
               },
             ),
 
@@ -147,6 +153,49 @@ class _FeedbackOverlayState extends State<FeedbackOverlay> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// A new run counts coin thresholds from zero again
+  void _retry(BuildContext context, GameProvider gameProvider) {
+    context.read<CreditProvider>().resetThreshold();
+    gameProvider.restart();
+  }
+
+  /// Retry with doubled points, paid for with a rewarded ad
+  Widget _buildRetryDoubleButton(
+    BuildContext context,
+    GameProvider gameProvider,
+    TactilePalette palette,
+  ) {
+    final hasAd = context.select<AdsProvider, bool>(
+      (a) => a.isRewardedAdLoaded,
+    );
+    if (!hasAd) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Semantics(
+        label: 'a11y_retry_x2'.tr(),
+        child: OverlayButton(
+          palette: palette,
+          label: 'retry_x2'.tr(),
+          tone: TactileColors.orange,
+          icon: Icons.smart_display_rounded,
+          onTap: () {
+            // Read before the ad: the context may be gone when it closes
+            final audioProvider = context.read<AudioProvider>();
+            final creditProvider = context.read<CreditProvider>();
+            context.read<AdsProvider>().showRewardedAd(
+              onRewarded: () {
+                audioProvider.playMouseSound();
+                creditProvider.resetThreshold();
+                gameProvider.restart(doubleBonus: true);
+              },
+            );
+          },
         ),
       ),
     );

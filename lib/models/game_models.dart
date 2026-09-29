@@ -40,6 +40,12 @@ enum CosmeticCategory {
 
   /// How a lost board falls apart
   loseAnimation,
+
+  /// Decorative frame around the board
+  gridFrame,
+
+  /// Symbol printed on every colored tile
+  cellSprite,
 }
 
 /// Represents a cosmetic item that can be unlocked
@@ -67,20 +73,29 @@ class CosmeticState {
   final String equippedCellAnimationId;
   final String equippedSoundPackId;
   final String equippedLoseAnimationId;
+  final String equippedFrameId;
+  final String equippedSpriteId;
+
+  /// Free items every player owns from the start
+  static const Set<String> freeCosmetics = {
+    'default_theme',
+    'default_grid',
+    'default_animation',
+    'default_sound',
+    'default_lose',
+    'default_frame',
+    'default_sprite',
+  };
 
   const CosmeticState({
-    this.unlockedCosmetics = const {
-      'default_theme',
-      'default_grid',
-      'default_animation',
-      'default_sound',
-      'default_lose',
-    },
+    this.unlockedCosmetics = freeCosmetics,
     this.equippedThemeId = 'default_theme',
     this.equippedGridStyleId = 'default_grid',
     this.equippedCellAnimationId = 'default_animation',
     this.equippedSoundPackId = 'default_sound',
     this.equippedLoseAnimationId = 'default_lose',
+    this.equippedFrameId = 'default_frame',
+    this.equippedSpriteId = 'default_sprite',
   });
 
   CosmeticState copyWith({
@@ -90,6 +105,8 @@ class CosmeticState {
     String? equippedCellAnimationId,
     String? equippedSoundPackId,
     String? equippedLoseAnimationId,
+    String? equippedFrameId,
+    String? equippedSpriteId,
   }) {
     return CosmeticState(
       unlockedCosmetics: unlockedCosmetics ?? this.unlockedCosmetics,
@@ -100,6 +117,8 @@ class CosmeticState {
       equippedSoundPackId: equippedSoundPackId ?? this.equippedSoundPackId,
       equippedLoseAnimationId:
           equippedLoseAnimationId ?? this.equippedLoseAnimationId,
+      equippedFrameId: equippedFrameId ?? this.equippedFrameId,
+      equippedSpriteId: equippedSpriteId ?? this.equippedSpriteId,
     );
   }
 
@@ -111,6 +130,8 @@ class CosmeticState {
       'equippedCellAnimationId': equippedCellAnimationId,
       'equippedSoundPackId': equippedSoundPackId,
       'equippedLoseAnimationId': equippedLoseAnimationId,
+      'equippedFrameId': equippedFrameId,
+      'equippedSpriteId': equippedSpriteId,
     };
   }
 
@@ -124,8 +145,8 @@ class CosmeticState {
               'default_animation',
               'default_sound',
             ],
-        // Saves from before lose animations existed lack the free one
-      )..add('default_lose'),
+        // Saves from before a category existed lack its free item
+      )..addAll(freeCosmetics),
       equippedThemeId: json['equippedThemeId'] as String? ?? 'default_theme',
       equippedGridStyleId:
           json['equippedGridStyleId'] as String? ?? 'default_grid',
@@ -135,10 +156,32 @@ class CosmeticState {
           json['equippedSoundPackId'] as String? ?? 'default_sound',
       equippedLoseAnimationId:
           json['equippedLoseAnimationId'] as String? ?? 'default_lose',
+      equippedFrameId: json['equippedFrameId'] as String? ?? 'default_frame',
+      equippedSpriteId: json['equippedSpriteId'] as String? ?? 'default_sprite',
     );
   }
 
   bool isUnlocked(String cosmeticId) => unlockedCosmetics.contains(cosmeticId);
+
+  /// Id of the item equipped in [category]
+  String equippedIn(CosmeticCategory category) {
+    switch (category) {
+      case CosmeticCategory.theme:
+        return equippedThemeId;
+      case CosmeticCategory.gridStyle:
+        return equippedGridStyleId;
+      case CosmeticCategory.cellAnimation:
+        return equippedCellAnimationId;
+      case CosmeticCategory.soundPack:
+        return equippedSoundPackId;
+      case CosmeticCategory.loseAnimation:
+        return equippedLoseAnimationId;
+      case CosmeticCategory.gridFrame:
+        return equippedFrameId;
+      case CosmeticCategory.cellSprite:
+        return equippedSpriteId;
+    }
+  }
 }
 
 /// Represents a single cell in the grid

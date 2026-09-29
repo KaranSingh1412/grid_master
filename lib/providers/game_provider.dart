@@ -28,6 +28,18 @@ class GameProvider extends ChangeNotifier {
   final Random _random = Random();
   AudioProvider? _audioProvider;
 
+  /// A new run begins (start, restart)
+  VoidCallback? onRunStarted;
+
+  /// A level was solved; [gained] is what it added to the score
+  void Function(int gained, ScoreState score)? onLevelSolved;
+
+  /// The run was lost; a continue through an ad can still extend it
+  void Function(ScoreState score)? onRunLost;
+
+  /// A free or paid hint was used
+  VoidCallback? onHintUsed;
+
   static const Duration solutionDuration = Duration(seconds: 2);
 
   /// Length of the lose animation on the board
@@ -138,6 +150,7 @@ class GameProvider extends ChangeNotifier {
     _score = ScoreState(highScore: _score.highScore);
     _hints = 3;
     _hasUsedContinueThisRound = false;
+    onRunStarted?.call();
     startLevel();
   }
 
@@ -187,6 +200,7 @@ class GameProvider extends ChangeNotifier {
     _gameState = GameState.showSolution;
     _deactivateDoubleBonus();
     _audioProvider?.playLoseSound();
+    onRunLost?.call(_score);
     notifyListeners();
 
     // Show solution for 2 seconds, let the board fall apart, then game over
@@ -277,6 +291,7 @@ class GameProvider extends ChangeNotifier {
 
       _gameState = GameState.levelUp;
       _audioProvider?.playWinSound();
+      onLevelSolved?.call(pointsGain, _score);
       notifyListeners();
 
       // Auto-proceed to next level
@@ -363,6 +378,7 @@ class GameProvider extends ChangeNotifier {
     }
 
     _hints--;
+    onHintUsed?.call();
     notifyListeners();
 
     // Check if pattern is now complete
@@ -405,6 +421,8 @@ class GameProvider extends ChangeNotifier {
     // Try to spend 5 credits (with daily limit check)
     if (!creditProvider.spendCreditsForHint(5)) return false;
 
+    onHintUsed?.call();
+
     // Apply the hint
     final randomIdx = wrongIndices[_random.nextInt(wrongIndices.length)];
     _userPattern[randomIdx] = GridCell(
@@ -438,14 +456,18 @@ class GameProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Restart the game immediately
-  void restart() {
+  /// Restart the game immediately; [doubleBonus] doubles every level's
+  /// points for the new run (paid for with a rewarded ad)
+  void restart({bool doubleBonus = false}) {
     _gameTimer?.cancel();
     _currentLevelIdx = 0;
     _score = ScoreState(highScore: _score.highScore);
     _hints = 3;
     _hasUsedContinueThisRound = false;
+    // A bonus still running (restart from pause) carries over
+    if (doubleBonus) _hasDoubleBonus = true;
     _targetPattern = [];
+    onRunStarted?.call();
     startLevel();
   }
 

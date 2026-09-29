@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/tactile_tokens.dart';
+import '../game/board_decor.dart';
 
 /// Paints one tactile piece: a solid lip with the face sitting on top of it.
 /// [press] moves the face down and shrinks the lip; the outer size never
@@ -17,6 +18,9 @@ class TactilePainter extends CustomPainter {
   /// Blur-free glow: two stacked translucent outlines behind the piece
   final Color? haloColor;
 
+  /// Symbol on the face (tile sprites cosmetic)
+  final CellSprite? sprite;
+
   const TactilePainter({
     required this.tone,
     required this.radius,
@@ -27,6 +31,7 @@ class TactilePainter extends CustomPainter {
     this.ringColor,
     this.ringWidth = 0,
     this.haloColor,
+    this.sprite,
   });
 
   @override
@@ -90,6 +95,8 @@ class TactilePainter extends CustomPainter {
       canvas.drawRRect(face.deflate(0.75), edge);
     }
 
+    sprite?.paint(canvas, face.outerRect, tone);
+
     if (ringColor != null && ringWidth > 0) {
       canvas.drawRRect(
         face.deflate(ringWidth / 2),
@@ -112,7 +119,8 @@ class TactilePainter extends CustomPainter {
       old.sheen != sheen ||
       old.ringColor != ringColor ||
       old.ringWidth != ringWidth ||
-      old.haloColor != haloColor;
+      old.haloColor != haloColor ||
+      old.sprite != sprite;
 }
 
 /// Static tactile panel or, with [press], the body of a key.

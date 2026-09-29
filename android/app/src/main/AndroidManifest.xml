@@ -8,6 +8,11 @@
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-4855024639232585~2725368046"/>
+
+        <!-- Google Play Games project id, see res/values/games-ids.xml -->
+        <meta-data
+            android:name="com.google.android.gms.games.APP_ID"
+            android:value="@string/game_services_project_id"/>
             
         <activity
             android:name=".MainActivity"

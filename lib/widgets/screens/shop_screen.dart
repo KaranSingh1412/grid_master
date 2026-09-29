@@ -15,6 +15,8 @@ import '../effects/bump.dart';
 import '../effects/count_up_text.dart';
 import '../effects/grid_collapse.dart';
 import '../effects/grid_collapse_preview.dart';
+import '../game/block_points.dart';
+import '../game/board_decor.dart';
 import '../tactile/tactile.dart';
 
 /// Credit package definition
@@ -66,7 +68,10 @@ const List<CreditPackage> creditPackages = [
 
 /// Unified shop screen with tabs for Coins and Cosmetics
 class ShopScreen extends StatefulWidget {
-  const ShopScreen({super.key});
+  /// Tab to open on; 0 is the coins tab
+  final int initialTab;
+
+  const ShopScreen({super.key, this.initialTab = 0});
 
   @override
   State<ShopScreen> createState() => _ShopScreenState();
@@ -79,7 +84,11 @@ class _ShopScreenState extends State<ShopScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(
+      length: 8,
+      vsync: this,
+      initialIndex: widget.initialTab,
+    );
   }
 
   @override
@@ -105,7 +114,19 @@ class _ShopScreenState extends State<ShopScreen>
               title: 'shop_title'.tr(),
               backLabel: 'a11y_back'.tr(),
               onBack: () => context.pop(),
-              trailing: _CoinBalance(palette: palette),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  BlockPointBalance(
+                    palette: palette,
+                    value: context.select<CreditProvider, int>(
+                      (c) => c.blockPoints,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _CoinBalance(palette: palette),
+                ],
+              ),
             ),
             Align(
               alignment: Alignment.centerLeft,
@@ -118,6 +139,8 @@ class _ShopScreenState extends State<ShopScreen>
                   'cosmetics_tab_grids'.tr(),
                   'cosmetics_tab_animations'.tr(),
                   'cosmetics_tab_lose'.tr(),
+                  'cosmetics_tab_frames'.tr(),
+                  'cosmetics_tab_sprites'.tr(),
                   'cosmetics_tab_sounds'.tr(),
                 ],
               ),
@@ -136,6 +159,12 @@ class _ShopScreenState extends State<ShopScreen>
                   ),
                   _ShopCosmeticCategoryList(
                     category: CosmeticCategory.loseAnimation,
+                  ),
+                  _ShopCosmeticCategoryList(
+                    category: CosmeticCategory.gridFrame,
+                  ),
+                  _ShopCosmeticCategoryList(
+                    category: CosmeticCategory.cellSprite,
                   ),
                   _ShopCosmeticCategoryList(
                     category: CosmeticCategory.soundPack,
@@ -544,8 +573,10 @@ class _ShopCosmeticCategoryList extends StatelessWidget {
             return _ShopCosmeticItemCard(
               item: item,
               isUnlocked: credits.cosmeticState.isUnlocked(item.id),
-              isEquipped: _isEquipped(credits.cosmeticState, item),
+              isEquipped:
+                  credits.cosmeticState.equippedIn(item.category) == item.id,
               coinCredits: credits.credits,
+              blockPoints: credits.blockPoints,
               onEquip: () {
                 credits.equipCosmetic(item);
                 // Theme sofort aktualisieren wenn ein Theme ausgewählt wird
@@ -559,27 +590,14 @@ class _ShopCosmeticCategoryList extends StatelessWidget {
               },
               onPurchase: () =>
                   credits.purchaseCosmetic(item.id, item.cosmeticCost),
+              onPurchaseWithBlockPoints: () =>
+                  credits.purchaseCosmeticWithBlockPoints(item),
               onUnlockByLevel: () => credits.unlockCosmeticByLevel(item.id),
             );
           },
         );
       },
     );
-  }
-
-  bool _isEquipped(CosmeticState state, CosmeticItem item) {
-    switch (item.category) {
-      case CosmeticCategory.theme:
-        return state.equippedThemeId == item.id;
-      case CosmeticCategory.gridStyle:
-        return state.equippedGridStyleId == item.id;
-      case CosmeticCategory.cellAnimation:
-        return state.equippedCellAnimationId == item.id;
-      case CosmeticCategory.soundPack:
-        return state.equippedSoundPackId == item.id;
-      case CosmeticCategory.loseAnimation:
-        return state.equippedLoseAnimationId == item.id;
-    }
   }
 }
 
@@ -589,8 +607,10 @@ class _ShopCosmeticItemCard extends StatelessWidget {
   final bool isUnlocked;
   final bool isEquipped;
   final int coinCredits;
+  final int blockPoints;
   final VoidCallback onEquip;
   final VoidCallback onPurchase;
+  final VoidCallback onPurchaseWithBlockPoints;
   final VoidCallback onUnlockByLevel;
 
   const _ShopCosmeticItemCard({
@@ -598,8 +618,10 @@ class _ShopCosmeticItemCard extends StatelessWidget {
     required this.isUnlocked,
     required this.isEquipped,
     required this.coinCredits,
+    required this.blockPoints,
     required this.onEquip,
     required this.onPurchase,
+    required this.onPurchaseWithBlockPoints,
     required this.onUnlockByLevel,
   });
 
@@ -721,6 +743,13 @@ class _ShopCosmeticItemCard extends StatelessWidget {
       return GridCollapsePreview(kind: collapse, palette: palette);
     }
 
+    // Frames and sprites show on a mini board
+    final frame = BoardFrame.ofCosmetic(item.id);
+    final sprite = CellSprite.ofCosmetic(item.id);
+    if (frame != null || sprite != null) {
+      return _buildBoardPreview(palette, frame, sprite);
+    }
+
     final tone = isUnlocked
         ? palette.raised
         : palette.raised.muted(palette.surface.face);
@@ -736,6 +765,61 @@ class _ShopCosmeticItemCard extends StatelessWidget {
           color: isUnlocked ? palette.accent : palette.textMuted,
           size: 24,
         ),
+      ),
+    );
+  }
+
+  Widget _buildBoardPreview(
+    TactilePalette palette,
+    BoardFrame? frame,
+    CellSprite? sprite,
+  ) {
+    const size = 52.0;
+    const pad = 6.0;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          TactileWell(
+            color: palette.backgroundDeep,
+            radius: TactileRadii.sm,
+            padding: const EdgeInsets.all(pad),
+            child: GridView.count(
+              padding: EdgeInsets.zero,
+              crossAxisCount: 2,
+              crossAxisSpacing: 3,
+              mainAxisSpacing: 3,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                for (final tone in [
+                  palette.gameTones[0],
+                  palette.gameTones[1],
+                  palette.gameTones[2],
+                  palette.gameTones[3],
+                ])
+                  CustomPaint(
+                    painter: TactilePainter(
+                      tone: tone,
+                      radius: 5,
+                      depth: const TactileDepth(lip: 3, lipPressed: 1),
+                      sheen: false,
+                      sprite: sprite,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (frame != null)
+            CustomPaint(
+              painter: BoardFramePainter(
+                frame: frame,
+                radius: TactileRadii.sm,
+                width: pad - 1,
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -775,24 +859,65 @@ class _ShopCosmeticItemCard extends StatelessWidget {
 
     if (item.cosmeticCost > 0) {
       final canAfford = coinCredits >= item.cosmeticCost;
+      final bpCost = blockPointCost(item);
+      final canAffordBp = blockPoints >= bpCost;
       final muted = palette.raised.muted(palette.surface.face);
-      return TactileButton(
-        tone: palette.cta,
-        disabledTone: muted,
-        depth: TactileDepth.small,
-        radius: TactileRadii.sm,
-        padding: pad,
-        onTap: canAfford ? onPurchase : null,
-        child: Row(
+      // Two ways to pay: coins or Blockpunkte, both keys equally wide
+      return IntrinsicWidth(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Image.asset('assets/img/coin.png', width: 16, height: 16),
-            const SizedBox(width: 4),
-            Text(
-              '${item.cosmeticCost}',
-              style: text.number(
-                14,
-                color: canAfford ? palette.cta.ink : palette.textMuted,
+            TactileButton(
+              tone: palette.cta,
+              disabledTone: muted,
+              depth: TactileDepth.small,
+              radius: TactileRadii.sm,
+              padding: pad,
+              onTap: canAfford ? onPurchase : null,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset('assets/img/coin.png', width: 16, height: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${item.cosmeticCost}',
+                    style: text.number(
+                      14,
+                      color: canAfford ? palette.cta.ink : palette.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            TactileButton(
+              tone: palette.primary,
+              disabledTone: muted,
+              depth: TactileDepth.small,
+              radius: TactileRadii.sm,
+              padding: pad,
+              semanticLabel: '${'block_points'.tr()} $bpCost',
+              onTap: canAffordBp ? onPurchaseWithBlockPoints : null,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  BlockPointIcon(
+                    palette: palette,
+                    size: 14,
+                    muted: !canAffordBp,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    formatBlockPoints(bpCost),
+                    style: text.number(
+                      14,
+                      color: canAffordBp
+                          ? palette.primary.ink
+                          : palette.textMuted,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -818,6 +943,10 @@ class _ShopCosmeticItemCard extends StatelessWidget {
         return Icons.music_note_rounded;
       case CosmeticCategory.loseAnimation:
         return Icons.block_rounded;
+      case CosmeticCategory.gridFrame:
+        return Icons.crop_square_rounded;
+      case CosmeticCategory.cellSprite:
+        return Icons.star_rounded;
     }
   }
 }

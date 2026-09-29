@@ -10,6 +10,7 @@ import '../../providers/theme_provider.dart';
 import '../effects/grid_collapse.dart';
 import '../effects/particle_field.dart';
 import '../tactile/tactile.dart';
+import 'board_decor.dart';
 import 'grid_style.dart';
 
 /// Board-wide sequences. One controller per sequence; every tile derives its
@@ -434,6 +435,16 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
       _animationId = animationId;
       _syncCosmetic();
     }
+    final sprite = CellSprite.ofCosmetic(
+      context.select<CreditProvider, String>(
+        (c) => c.cosmeticState.equippedSpriteId,
+      ),
+    );
+    final frame = BoardFrame.ofCosmetic(
+      context.select<CreditProvider, String>(
+        (c) => c.cosmeticState.equippedFrameId,
+      ),
+    );
 
     final size = gameProvider.currentLevel.gridSize;
     final isShowSolution = gameProvider.isShowSolution;
@@ -503,58 +514,68 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
                           ),
                         );
                       },
-                      child: TactileWell(
-                        color: palette.backgroundDeep,
-                        radius: style.trayRadius,
-                        borderColor: style.trayBorder,
-                        borderWidth: style.trayBorderWidth,
-                        glow: style.trayGlow,
-                        padding: EdgeInsets.all(trayPadding),
-                        child: GridView.builder(
-                          padding: EdgeInsets.zero,
-                          clipBehavior: Clip.none,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: size,
-                                crossAxisSpacing: cellSpacing,
-                                mainAxisSpacing: cellSpacing,
-                              ),
-                          itemCount: cells.length,
-                          itemBuilder: (context, index) {
-                            // Taken over by the lose animation
-                            if (_collapse?.hides(index) ?? false) {
-                              return SizedBox.shrink(
+                      // The frame covers the tray rim only, never a tile
+                      child: _framed(
+                        frame,
+                        style.trayRadius,
+                        trayPadding,
+                        TactileWell(
+                          color: palette.backgroundDeep,
+                          radius: style.trayRadius,
+                          borderColor: style.trayBorder,
+                          borderWidth: style.trayBorderWidth,
+                          glow: style.trayGlow,
+                          padding: EdgeInsets.all(trayPadding),
+                          child: GridView.builder(
+                            padding: EdgeInsets.zero,
+                            clipBehavior: Clip.none,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: size,
+                                  crossAxisSpacing: cellSpacing,
+                                  mainAxisSpacing: cellSpacing,
+                                ),
+                            itemCount: cells.length,
+                            itemBuilder: (context, index) {
+                              // Taken over by the lose animation
+                              if (_collapse?.hides(index) ?? false) {
+                                return SizedBox.shrink(
+                                  key: ValueKey('cell_$index'),
+                                );
+                              }
+
+                              // Check if this cell was wrong (only during solution display)
+                              final isErrorCell =
+                                  isShowSolution &&
+                                  userPattern[index].color !=
+                                      cells[index].color;
+                              final color = cells[index].color;
+
+                              return _GridCell(
                                 key: ValueKey('cell_$index'),
+                                index: index,
+                                gridSize: size,
+                                color: color,
+                                tone: palette.toneOf(color),
+                                errorColor: palette.danger.face,
+                                isInteractive: isInteractive,
+                                isErrorCell: isErrorCell,
+                                style: style,
+                                sprite: sprite,
+                                animationId: animationId,
+                                motion: _motion,
+                                reduceMotion: _reduceMotion,
+                                onPlaced: () => _emit(index, color),
+                                onTap: () {
+                                  context
+                                      .read<AudioProvider>()
+                                      .playPlaceSound();
+                                  gameProvider.onCellTap(index);
+                                },
                               );
-                            }
-
-                            // Check if this cell was wrong (only during solution display)
-                            final isErrorCell =
-                                isShowSolution &&
-                                userPattern[index].color != cells[index].color;
-                            final color = cells[index].color;
-
-                            return _GridCell(
-                              key: ValueKey('cell_$index'),
-                              index: index,
-                              gridSize: size,
-                              color: color,
-                              tone: palette.toneOf(color),
-                              errorColor: palette.danger.face,
-                              isInteractive: isInteractive,
-                              isErrorCell: isErrorCell,
-                              style: style,
-                              animationId: animationId,
-                              motion: _motion,
-                              reduceMotion: _reduceMotion,
-                              onPlaced: () => _emit(index, color),
-                              onTap: () {
-                                context.read<AudioProvider>().playPlaceSound();
-                                gameProvider.onCellTap(index);
-                              },
-                            );
-                          },
+                            },
+                          ),
                         ),
                       ),
                     ),
@@ -577,6 +598,26 @@ class _GameGridState extends State<GameGrid> with TickerProviderStateMixin {
   }
 }
 
+/// Lays the equipped frame over the tray rim
+Widget _framed(BoardFrame? frame, double radius, double width, Widget tray) {
+  if (frame == null) return tray;
+  return Stack(
+    fit: StackFit.expand,
+    children: [
+      tray,
+      IgnorePointer(
+        child: CustomPaint(
+          painter: BoardFramePainter(
+            frame: frame,
+            radius: radius,
+            width: width - 1,
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
 class _GridCell extends StatefulWidget {
   final int index;
   final int gridSize;
@@ -586,6 +627,7 @@ class _GridCell extends StatefulWidget {
   final bool isInteractive;
   final bool isErrorCell;
   final GridStyleSpec style;
+  final CellSprite? sprite;
   final String animationId;
   final _GridMotion motion;
   final bool reduceMotion;
@@ -602,6 +644,7 @@ class _GridCell extends StatefulWidget {
     required this.isInteractive,
     this.isErrorCell = false,
     required this.style,
+    this.sprite,
     required this.animationId,
     required this.motion,
     required this.reduceMotion,
@@ -784,6 +827,7 @@ class _GridCellState extends State<_GridCell> with TickerProviderStateMixin {
             haloColor: haloAlpha > 0
                 ? tone.face.withValues(alpha: haloAlpha)
                 : null,
+            sprite: widget.sprite,
           );
 
           if (_clear.isAnimating && _clearedTone != null) {
@@ -797,6 +841,7 @@ class _GridCellState extends State<_GridCell> with TickerProviderStateMixin {
                   child: TactileCell(
                     tone: _clearedTone!,
                     radius: style.cellRadius,
+                    sprite: widget.sprite,
                   ),
                 ),
               ],
