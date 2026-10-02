@@ -1,0 +1,2 @@
+app_identifier("de.karancode.gridMaster")
+team_id(ENV["APPLE_TEAM_ID"])

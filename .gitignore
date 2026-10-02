@@ -50,3 +50,12 @@ app.*.map.json
 
 # impeccable review captures
 .impeccable/review/
+
+# fastlane
+**/fastlane/report.xml
+**/fastlane/test_output/
+**/fastlane/Preview.html
+**/fastlane/screenshots/
+android/.bundle/
+ios/.bundle/
+build/ios/ipa/
