@@ -662,4 +662,82 @@ void main() {
       await finish(tester, gp);
     });
   });
+
+  group('retry with x2 bonus', () {
+    testWidgets('doubles the points of the new run', (tester) async {
+      final gp = await create(tester);
+      gp.startGame();
+      gp.skipPreview();
+      gp.validatePattern();
+      await tester.pump(_afterFailure);
+      expect(gp.hasDoubleBonus, isFalse);
+
+      gp.restart(doubleBonus: true);
+      expect(gp.hasDoubleBonus, isTrue);
+      gp.skipPreview();
+      final level = gp.currentLevel;
+      final timer = gp.timer;
+      _solve(gp);
+      expect(gp.score.points, _expectedPoints(level, timer, doubled: true));
+      await tester.pump(_afterLevelUp);
+      await finish(tester, gp);
+    });
+
+    testWidgets('a plain retry after a loss has no bonus', (tester) async {
+      final gp = await create(tester);
+      gp.activateDoubleBonus();
+      gp.startGame();
+      gp.skipPreview();
+      gp.validatePattern();
+      await tester.pump(_afterFailure);
+      gp.restart();
+      expect(gp.hasDoubleBonus, isFalse);
+      await finish(tester, gp);
+    });
+
+    testWidgets('a restart from pause keeps a running bonus', (tester) async {
+      final gp = await create(tester);
+      gp.activateDoubleBonus();
+      gp.startGame();
+      gp.togglePause();
+      gp.restart();
+      expect(gp.hasDoubleBonus, isTrue);
+      await finish(tester, gp);
+    });
+  });
+
+  group('run events', () {
+    testWidgets('report start, solved levels, hints and the loss', (
+      tester,
+    ) async {
+      final gp = await create(tester);
+      var started = 0;
+      var hints = 0;
+      final gains = <int>[];
+      ScoreState? lost;
+      gp.onRunStarted = () => started++;
+      gp.onLevelSolved = (gained, score) => gains.add(gained);
+      gp.onHintUsed = () => hints++;
+      gp.onRunLost = (score) => lost = score;
+
+      gp.startGame();
+      expect(started, 1);
+      gp.skipPreview();
+      gp.useHint();
+      expect(hints, 1);
+      _solve(gp);
+      expect(gains.length, 1);
+      expect(gains.single, gp.score.points);
+
+      await tester.pump(_afterLevelUp);
+      gp.skipPreview();
+      gp.validatePattern();
+      expect(lost?.points, gp.score.points);
+
+      await tester.pump(_afterFailure);
+      gp.restart();
+      expect(started, 2);
+      await finish(tester, gp);
+    });
+  });
 }

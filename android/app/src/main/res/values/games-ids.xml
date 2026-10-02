@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Project id from the Play Console (Play Games Services > Configuration).
+         Replace the placeholder before using the leaderboard. -->
+    <string name="game_services_project_id" translatable="false">000000000000</string>
+</resources>

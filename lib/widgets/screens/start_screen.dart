@@ -9,10 +9,12 @@ import '../../providers/ads_provider.dart';
 import '../../providers/credit_provider.dart';
 import '../../providers/audio_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../providers/leaderboard_provider.dart';
 import '../../router/app_router.dart';
 import '../../theme/app_theme.dart';
 import '../effects/bump.dart';
 import '../effects/count_up_text.dart';
+import '../overlays/lootbox_dialog.dart';
 import '../tactile/tactile.dart';
 
 /// Start screen: wordmark, a 2x2 tile board with the play key, shop and bonus
@@ -141,16 +143,46 @@ class _StartScreenState extends State<StartScreen>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _buildCreditsDisplay(palette, coinSize: coinSize),
-                      TactileIconButton(
-                        icon: Icons.settings,
-                        semanticLabel: 'settings'.tr(),
-                        tone: palette.raised,
-                        iconColor: palette.textPrimary,
-                        size: buttonSize,
-                        onTap: () {
-                          context.read<AudioProvider>().playUiTapSound();
-                          context.push(AppRoutes.settings);
-                        },
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (context.select<LeaderboardProvider, bool>(
+                            (l) => l.isAvailable,
+                          )) ...[
+                            TactileIconButton(
+                              icon: Icons.emoji_events_rounded,
+                              semanticLabel: 'leaderboard'.tr(),
+                              tone: palette.raised,
+                              iconColor: palette.cta.face,
+                              size: buttonSize,
+                              onTap: () => _openLeaderboard(context),
+                            ),
+                            const SizedBox(width: 10),
+                          ],
+                          TactileIconButton(
+                            icon: Icons.bar_chart_rounded,
+                            semanticLabel: 'stats'.tr(),
+                            tone: palette.raised,
+                            iconColor: palette.textPrimary,
+                            size: buttonSize,
+                            onTap: () {
+                              context.read<AudioProvider>().playUiTapSound();
+                              context.push(AppRoutes.stats);
+                            },
+                          ),
+                          const SizedBox(width: 10),
+                          TactileIconButton(
+                            icon: Icons.settings,
+                            semanticLabel: 'settings'.tr(),
+                            tone: palette.raised,
+                            iconColor: palette.textPrimary,
+                            size: buttonSize,
+                            onTap: () {
+                              context.read<AudioProvider>().playUiTapSound();
+                              context.push(AppRoutes.settings);
+                            },
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -165,6 +197,8 @@ class _StartScreenState extends State<StartScreen>
                   _buildBoard(palette, size: boardSize),
                   SizedBox(height: titleSpacing),
                   _buildSideKeys(context, palette, isSmallScreen),
+                  SizedBox(height: isSmallScreen ? 12 : 16),
+                  _buildExtraKeys(context, palette, isSmallScreen),
                   const Spacer(),
                   // Quiet strip above the banner: nothing moves next to the ad
                   const SizedBox(height: 24),
@@ -456,6 +490,167 @@ class _StartScreenState extends State<StartScreen>
               _openShop(context);
             },
           ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openLeaderboard(BuildContext context) async {
+    context.read<AudioProvider>().playUiTapSound();
+    final messenger = ScaffoldMessenger.of(context);
+    final shown = await context.read<LeaderboardProvider>().show();
+    if (!shown) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('leaderboard_unavailable'.tr())),
+      );
+    }
+  }
+
+  /// Two player mode and the free lootbox
+  Widget _buildExtraKeys(
+    BuildContext context,
+    TactilePalette palette,
+    bool isSmallScreen,
+  ) {
+    final text = TactileText(palette);
+    final height = isSmallScreen ? 46.0 : 52.0;
+
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          TactileButton(
+            tone: palette.gameTones[1],
+            height: height,
+            radius: height * 0.34,
+            depth: TactileDepth.small,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            onTap: () {
+              context.read<AudioProvider>().playUiTapSound();
+              context.go(AppRoutes.multiplayer);
+            },
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.people_alt_rounded, size: height * 0.48),
+                const SizedBox(width: 8),
+                Text(
+                  'mp_button'.tr().toUpperCase(),
+                  style: text.button.copyWith(
+                    fontSize: height * 0.3,
+                    color: palette.gameTones[1].ink,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          _buildLootboxKey(context, palette, height),
+        ],
+      ),
+    );
+  }
+
+  /// Glows while a free lootbox waits, otherwise shows the way to the next
+  Widget _buildLootboxKey(
+    BuildContext context,
+    TactilePalette palette,
+    double height,
+  ) {
+    final text = TactileText(palette);
+    final boxes = context.select<CreditProvider, int>((c) => c.lootboxes);
+    final progress = context.select<CreditProvider, double>(
+      (c) => c.lootboxProgress,
+    );
+    final ready = boxes > 0;
+    final muted = palette.raised.muted(palette.background);
+    final ink = ready ? palette.cta.ink : palette.textMuted;
+
+    return Bump(
+      trigger: boxes,
+      scale: 1.2,
+      rotate: 0.06,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          TactileButton(
+            tone: palette.cta,
+            disabledTone: muted,
+            height: height,
+            radius: height * 0.34,
+            depth: TactileDepth.small,
+            semanticLabel: 'lootbox'.tr(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            onTap: ready
+                ? () {
+                    context.read<AudioProvider>().playUiTapSound();
+                    showLootboxDialog(context);
+                  }
+                : null,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.card_giftcard_rounded,
+                      size: height * 0.44,
+                      color: ink,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'lootbox'.tr().toUpperCase(),
+                      style: text.button.copyWith(
+                        fontSize: height * 0.28,
+                        color: ink,
+                      ),
+                    ),
+                  ],
+                ),
+                if (!ready) ...[
+                  const SizedBox(height: 4),
+                  SizedBox(
+                    width: height * 1.8,
+                    height: 5,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        backgroundColor: palette.backgroundDeep,
+                        valueColor: AlwaysStoppedAnimation(
+                          palette.primary.face,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (ready)
+            Positioned(
+              top: -8,
+              right: -8,
+              child: IgnorePointer(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: palette.danger.face,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: palette.background, width: 2),
+                  ),
+                  child: Text(
+                    '$boxes',
+                    style: text.number(13, color: palette.danger.ink),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

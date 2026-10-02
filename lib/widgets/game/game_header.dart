@@ -193,11 +193,16 @@ class _GameHeaderState extends State<GameHeader> with TickerProviderStateMixin {
                     ),
                   ),
 
-                  // Combo badge
-                  if (score.combo > 1) ...[
-                    const SizedBox(height: 4),
-                    _buildComboBadge(palette, text, score.combo),
-                  ],
+                  // Combo badge; its slot stays reserved so the board below
+                  // never moves when a combo starts or breaks
+                  const SizedBox(height: 4),
+                  Visibility(
+                    visible: score.combo > 1,
+                    maintainSize: true,
+                    maintainAnimation: true,
+                    maintainState: true,
+                    child: _buildComboBadge(palette, text, score.combo),
+                  ),
                 ],
               ),
             ],
@@ -239,6 +244,7 @@ class _GameHeaderState extends State<GameHeader> with TickerProviderStateMixin {
                 letterSpacing: 0.8,
               ),
               textAlign: TextAlign.center,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),

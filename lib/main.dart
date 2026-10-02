@@ -15,6 +15,9 @@ import 'providers/credit_provider.dart';
 import 'providers/purchases_provider.dart';
 import 'providers/audio_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/stats_provider.dart';
+import 'providers/leaderboard_provider.dart';
+import 'providers/multiplayer_provider.dart';
 import 'theme/app_theme.dart';
 import 'theme/tactile_tokens.dart';
 import 'router/app_router.dart';
@@ -93,6 +96,9 @@ class GridMasterApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PurchasesProvider()),
         ChangeNotifierProvider(create: (_) => AudioProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => StatsProvider()),
+        ChangeNotifierProvider(create: (_) => LeaderboardProvider()),
+        ChangeNotifierProvider(create: (_) => MultiplayerProvider()),
       ],
       child: const _AppInitializer(),
     );
@@ -121,6 +127,24 @@ class _AppInitializerState extends State<_AppInitializer> {
     final adsProvider = context.read<AdsProvider>();
     final gameProvider = context.read<GameProvider>();
     final audioProvider = context.read<AudioProvider>();
+    final creditProvider = context.read<CreditProvider>();
+    final statsProvider = context.read<StatsProvider>();
+    final leaderboardProvider = context.read<LeaderboardProvider>();
+
+    // Every scored point is a Blockpunkt: it lands in the spendable balance,
+    // the statistics and, at the end of a run, the leaderboard
+    gameProvider.onRunStarted = statsProvider.recordRunStarted;
+    gameProvider.onLevelSolved = (gained, score) {
+      creditProvider.addBlockPoints(gained);
+      statsProvider.recordLevelSolved(gained, score);
+    };
+    gameProvider.onRunLost = (score) {
+      statsProvider.recordRunLost(score);
+      leaderboardProvider.submitScore(score.points);
+    };
+    gameProvider.onHintUsed = statsProvider.recordHintUsed;
+    context.read<MultiplayerProvider>().onMatchFinished =
+        statsProvider.recordMultiplayerMatch;
 
     // Initialize RevenueCat first
     await purchasesProvider.initialize();
@@ -140,6 +164,9 @@ class _AppInitializerState extends State<_AppInitializer> {
     gameProvider.setAudioProvider(audioProvider);
 
     setState(() => _isInitialized = true);
+
+    // Silent where the player is already signed in on the device
+    leaderboardProvider.signIn();
   }
 
   @override

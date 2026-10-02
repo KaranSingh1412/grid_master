@@ -1,0 +1,50 @@
+# Android releases: builds the app bundle and uploads it to Google Play.
+# Run from android/: bundle exec fastlane android <lane>
+#
+# Needs:
+#   PLAY_STORE_JSON_KEY   service account key (JSON content)
+#   android/key.properties + keystore (written by the release workflow)
+# Optional:
+#   PLAY_TRACK            internal (default), alpha, beta, production
+#   PLAY_RELEASE_STATUS   completed (default) or draft; an app that was never
+#                         published must use draft
+
+default_platform(:android)
+
+platform :android do
+  desc "Next versionCode: highest code on any track + 1"
+  private_lane :next_version_code do
+    codes = %w[internal alpha beta production].flat_map do |track|
+      google_play_track_version_codes(
+        track: track,
+        json_key_data: ENV.fetch("PLAY_STORE_JSON_KEY")
+      )
+    rescue StandardError
+      []
+    end
+    (codes.max || 0) + 1
+  end
+
+  desc "Build a signed release app bundle"
+  lane :build do |options|
+    build_number = options[:build_number] || next_version_code
+    Dir.chdir("../..") do
+      sh("flutter", "build", "appbundle", "--release", "--build-number=#{build_number}")
+    end
+  end
+
+  desc "Build and upload to Google Play (internal track by default)"
+  lane :deploy do
+    build
+    upload_to_play_store(
+      track: ENV.fetch("PLAY_TRACK", "internal"),
+      release_status: ENV.fetch("PLAY_RELEASE_STATUS", "completed"),
+      aab: File.expand_path("../../build/app/outputs/bundle/release/app-release.aab", __dir__),
+      json_key_data: ENV.fetch("PLAY_STORE_JSON_KEY"),
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      skip_upload_changelogs: true
+    )
+  end
+end

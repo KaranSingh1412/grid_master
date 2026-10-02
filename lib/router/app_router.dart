@@ -4,6 +4,8 @@ import '../widgets/screens/start_screen.dart';
 import '../widgets/screens/game_screen.dart';
 import '../widgets/screens/shop_screen.dart';
 import '../widgets/screens/settings_screen.dart';
+import '../widgets/screens/stats_screen.dart';
+import '../widgets/screens/multiplayer_screen.dart';
 
 /// Route Namen als Konstanten
 class AppRoutes {
@@ -12,6 +14,8 @@ class AppRoutes {
   static const String shop = '/shop';
   static const String settings = '/settings';
   static const String settingsInGame = '/settings-ingame';
+  static const String stats = '/stats';
+  static const String multiplayer = '/multiplayer';
 }
 
 /// Fade plus a small scale-up, used for pages that open on top of a screen
@@ -88,6 +92,26 @@ final GoRouter appRouter = GoRouter(
         key: state.pageKey,
         child: const SettingsScreen(isFromStartScreen: false),
         transitionsBuilder: _scaleFadeTransition,
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    ),
+    GoRoute(
+      path: AppRoutes.stats,
+      pageBuilder: (context, state) => CustomTransitionPage(
+        key: state.pageKey,
+        child: const StatsScreen(),
+        transitionsBuilder: _scaleFadeTransition,
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    ),
+    GoRoute(
+      path: AppRoutes.multiplayer,
+      pageBuilder: (context, state) => CustomTransitionPage(
+        key: state.pageKey,
+        child: const MultiplayerScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
         transitionDuration: const Duration(milliseconds: 300),
       ),
     ),

@@ -360,7 +360,78 @@ const List<CosmeticItem> allCosmetics = [
     category: CosmeticCategory.loseAnimation,
     cosmeticCost: 225,
   ),
+
+  // Frames around the board
+  CosmeticItem(
+    id: 'default_frame',
+    nameKey: 'cosmetic_default_frame',
+    category: CosmeticCategory.gridFrame,
+  ),
+  CosmeticItem(
+    id: 'wood_frame',
+    nameKey: 'cosmetic_wood_frame',
+    category: CosmeticCategory.gridFrame,
+    cosmeticCost: 60,
+  ),
+  CosmeticItem(
+    id: 'candy_frame',
+    nameKey: 'cosmetic_candy_frame',
+    category: CosmeticCategory.gridFrame,
+    cosmeticCost: 90,
+  ),
+  CosmeticItem(
+    id: 'pixel_frame',
+    nameKey: 'cosmetic_pixel_frame',
+    category: CosmeticCategory.gridFrame,
+    cosmeticCost: 120,
+  ),
+  CosmeticItem(
+    id: 'gold_frame',
+    nameKey: 'cosmetic_gold_frame',
+    category: CosmeticCategory.gridFrame,
+    cosmeticCost: 200,
+  ),
+
+  // Sprites on the colored tiles
+  CosmeticItem(
+    id: 'default_sprite',
+    nameKey: 'cosmetic_default_sprite',
+    category: CosmeticCategory.cellSprite,
+  ),
+  CosmeticItem(
+    id: 'dot_sprite',
+    nameKey: 'cosmetic_dot_sprite',
+    category: CosmeticCategory.cellSprite,
+    cosmeticCost: 50,
+  ),
+  CosmeticItem(
+    id: 'gem_sprite',
+    nameKey: 'cosmetic_gem_sprite',
+    category: CosmeticCategory.cellSprite,
+    cosmeticCost: 100,
+  ),
+  CosmeticItem(
+    id: 'star_sprite',
+    nameKey: 'cosmetic_star_sprite',
+    category: CosmeticCategory.cellSprite,
+    cosmeticCost: 125,
+  ),
+  CosmeticItem(
+    id: 'heart_sprite',
+    nameKey: 'cosmetic_heart_sprite',
+    category: CosmeticCategory.cellSprite,
+    cosmeticCost: 150,
+  ),
 ];
+
+/// Blockpunkte needed for what one coin buys in the shop
+const int blockPointsPerCoin = 500;
+
+/// Price of a cosmetic in Blockpunkte
+int blockPointCost(CosmeticItem item) => item.cosmeticCost * blockPointsPerCoin;
+
+/// Every this many Blockpunkte earned in total bring one free lootbox
+const int blockPointsPerLootbox = 10000;
 
 /// Available color options for the game
 const List<ColorType> colorOptions = [
